@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
-import { DayView } from "@/components/schedule/DayView";
-import { WeekView } from "@/components/schedule/WeekView";
-import { MonthView } from "@/components/schedule/MonthView";
-import { WeeklyMetrics } from "@/components/schedule/WeeklyMetrics";
+import { DayView } from "./schedule/DayView";
+import { WeekView } from "./schedule/WeekView";
+import { MonthView } from "./schedule/MonthView";
+import { WeeklyMetrics } from "./schedule/WeeklyMetrics";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
