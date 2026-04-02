@@ -40,6 +40,8 @@ interface FinanceState {
   addToSavingGoal: (goalId: string, amount: number) => void;
 
   addCategory: (cat: Omit<ExpenseCategory, "id">) => string;
+  updateCategory: (id: string, partial: Partial<ExpenseCategory>) => void;
+  deleteCategory: (id: string) => void;
 
   getExpensesByMonth: (monthKey: string) => Expense[];
   getCategoryBreakdown: (monthKey: string) => { category: ExpenseCategory; total: number }[];
@@ -173,6 +175,14 @@ export const useFinanceStore = create<FinanceState>()(
         set((s) => ({ categories: [...s.categories, { ...cat, id }] }));
         return id;
       },
+      updateCategory: (id, partial) =>
+        set((s) => ({
+          categories: s.categories.map((c) => (c.id === id ? { ...c, ...partial } : c)),
+        })),
+      deleteCategory: (id) =>
+        set((s) => ({
+          categories: s.categories.filter((c) => c.id !== id),
+        })),
 
       getExpensesByMonth: (monthKey) =>
         get().expenses.filter((e) => e.date.startsWith(monthKey)),

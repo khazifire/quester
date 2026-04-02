@@ -3,6 +3,13 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { useAppStore } from "@/stores/appStore";
 import { useFinanceStore } from "@/stores/financeStore";
 import { useCurrencyStore } from "@/stores/currencyStore";
@@ -18,6 +25,8 @@ export default function SettingsPage() {
   const { identityStatement, setIdentityStatement } = useAppStore();
   const categories = useFinanceStore((s) => s.categories);
   const addCategory = useFinanceStore((s) => s.addCategory);
+  const updateCategory = useFinanceStore((s) => s.updateCategory);
+  const deleteCategory = useFinanceStore((s) => s.deleteCategory);
   const {
     mainCurrency,
     wallets,
@@ -36,6 +45,13 @@ export default function SettingsPage() {
   const [newWalletCurrency, setNewWalletCurrency] = useState("");
   const [newWalletLabel, setNewWalletLabel] = useState("");
 
+  // Category edit/delete state
+  const [editCatOpen, setEditCatOpen] = useState(false);
+  const [editCatId, setEditCatId] = useState<string | null>(null);
+  const [editCatForm, setEditCatForm] = useState({ name: "", color: "#888888" });
+  const [deleteCatOpen, setDeleteCatOpen] = useState(false);
+  const [deleteCatId, setDeleteCatId] = useState<string | null>(null);
+
   function handleSaveIdentity() {
     setIdentityStatement(identity);
     toast.success("Identity updated");
@@ -47,6 +63,33 @@ export default function SettingsPage() {
     setNewCatName("");
     setNewCatColor("#888888");
     toast.success("Category added");
+  }
+
+  function openEditCat(id: string) {
+    const cat = categories.find((c) => c.id === id);
+    if (!cat) return;
+    setEditCatId(id);
+    setEditCatForm({ name: cat.name, color: cat.color });
+    setEditCatOpen(true);
+  }
+
+  function handleEditCat() {
+    if (!editCatId || !editCatForm.name.trim()) return;
+    updateCategory(editCatId, { name: editCatForm.name.trim(), color: editCatForm.color });
+    toast.success("Category updated");
+    setEditCatOpen(false);
+  }
+
+  function confirmDeleteCat(id: string) {
+    setDeleteCatId(id);
+    setDeleteCatOpen(true);
+  }
+
+  function handleDeleteCat() {
+    if (!deleteCatId) return;
+    deleteCategory(deleteCatId);
+    toast.success("Category deleted");
+    setDeleteCatOpen(false);
   }
 
   function handleAddWallet() {
@@ -208,20 +251,35 @@ export default function SettingsPage() {
             </div>
 
             <div className="bg-card mb-4">
-              <div className="grid grid-cols-[24px_1fr] gap-3 px-3 py-2 text-[11px] uppercase tracking-[0.06em] text-muted-foreground border-b border-border">
+              <div className="grid grid-cols-[24px_1fr_70px] gap-3 px-3 py-2 text-[11px] uppercase tracking-[0.06em] text-muted-foreground border-b border-border">
                 <span></span>
                 <span>Name</span>
+                <span className="text-right">Actions</span>
               </div>
               {categories.map((cat) => (
                 <div
                   key={cat.id}
-                  className="grid grid-cols-[24px_1fr] gap-3 px-3 py-2.5 text-[13px] border-b border-border last:border-0"
+                  className="grid grid-cols-[24px_1fr_70px] gap-3 px-3 py-2.5 text-[13px] border-b border-border last:border-0"
                 >
                   <div
                     className="w-3 h-3 rounded-sm mt-0.5"
                     style={{ backgroundColor: cat.color }}
                   />
                   <span className="text-foreground">{cat.name}</span>
+                  <span className="flex items-center justify-end gap-2">
+                    <button
+                      className="text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
+                      onClick={() => openEditCat(cat.id)}
+                    >
+                      [edit]
+                    </button>
+                    <button
+                      className="text-[11px] text-muted-foreground hover:text-destructive cursor-pointer"
+                      onClick={() => confirmDeleteCat(cat.id)}
+                    >
+                      [del]
+                    </button>
+                  </span>
                 </div>
               ))}
             </div>
@@ -244,6 +302,51 @@ export default function SettingsPage() {
           </section>
         </div>
       </div>
+
+      <Dialog open={editCatOpen} onOpenChange={setEditCatOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit category</DialogTitle>
+          </DialogHeader>
+          <div className="flex gap-2 items-end py-4">
+            <Input
+              placeholder="Name"
+              value={editCatForm.name}
+              onChange={(e) => setEditCatForm((f) => ({ ...f, name: e.target.value }))}
+              className="flex-1"
+            />
+            <input
+              type="color"
+              value={editCatForm.color}
+              onChange={(e) => setEditCatForm((f) => ({ ...f, color: e.target.value }))}
+              className="w-10 h-10 rounded cursor-pointer bg-transparent border border-border"
+            />
+          </div>
+          <DialogFooter>
+            <Button onClick={handleEditCat}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteCatOpen} onOpenChange={setDeleteCatOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete category?</DialogTitle>
+          </DialogHeader>
+          <p className="text-[13px] text-muted-foreground py-4 px-6">
+            Expenses using this category will keep their data but show no category. This cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteCatOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleDeleteCat}
+              className="!bg-destructive !text-destructive-foreground !border-destructive"
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }
