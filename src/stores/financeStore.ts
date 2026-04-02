@@ -1,0 +1,248 @@
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { nanoid } from "nanoid";
+import type {
+  Expense,
+  Subscription,
+  Invoice,
+  SavingGoal,
+  ExpenseCategory,
+} from "@/lib/types";
+import { DEFAULT_CATEGORIES } from "@/lib/constants";
+import { useProjectStore } from "./projectStore";
+import { useCurrencyStore } from "./currencyStore";
+
+interface FinanceState {
+  expenses: Expense[];
+  subscriptions: Subscription[];
+  invoices: Invoice[];
+  savingGoals: SavingGoal[];
+  categories: ExpenseCategory[];
+
+  addExpense: (expense: Omit<Expense, "id" | "createdAt">) => string;
+  updateExpense: (id: string, partial: Partial<Expense>) => void;
+  deleteExpense: (id: string) => void;
+  quickAddExpense: (amount: number, name: string, categoryId: string, currency?: string) => string;
+
+  addSubscription: (sub: Omit<Subscription, "id">) => string;
+  updateSubscription: (id: string, partial: Partial<Subscription>) => void;
+  deleteSubscription: (id: string) => void;
+  advanceSubscription: (subId: string) => void;
+
+  addInvoice: (invoice: Omit<Invoice, "id" | "createdAt" | "projectId">) => string;
+  updateInvoice: (id: string, partial: Partial<Invoice>) => void;
+  deleteInvoice: (id: string) => void;
+  markInvoicePaid: (invoiceId: string) => void;
+
+  addSavingGoal: (goal: Omit<SavingGoal, "id">) => string;
+  updateSavingGoal: (id: string, partial: Partial<SavingGoal>) => void;
+  deleteSavingGoal: (id: string) => void;
+  addToSavingGoal: (goalId: string, amount: number) => void;
+
+  addCategory: (cat: Omit<ExpenseCategory, "id">) => string;
+
+  getExpensesByMonth: (monthKey: string) => Expense[];
+  getCategoryBreakdown: (monthKey: string) => { category: ExpenseCategory; total: number }[];
+  getAvgMonthlyExpenses: (months?: number) => number;
+  getSubTotal: () => number;
+  getCashFlowForecast: (months: number) => { month: string; projected: number }[];
+  getEmergencyMonths: () => number;
+  getMonthlyIncome: (monthKey: string) => number;
+  getCategoryById: (id: string) => ExpenseCategory | undefined;
+}
+
+export const useFinanceStore = create<FinanceState>()(
+  persist(
+    (set, get) => ({
+      expenses: [],
+      subscriptions: [],
+      invoices: [],
+      savingGoals: [],
+      categories: DEFAULT_CATEGORIES,
+
+      addExpense: (expense) => {
+        const id = nanoid();
+        set((s) => ({
+          expenses: [...s.expenses, { ...expense, id, createdAt: Date.now() }],
+        }));
+        return id;
+      },
+      updateExpense: (id, partial) =>
+        set((s) => ({
+          expenses: s.expenses.map((e) => (e.id === id ? { ...e, ...partial } : e)),
+        })),
+      deleteExpense: (id) =>
+        set((s) => ({ expenses: s.expenses.filter((e) => e.id !== id) })),
+      quickAddExpense: (amount, name, categoryId, currency) => {
+        const id = nanoid();
+        const today = new Date().toISOString().split("T")[0];
+        set((s) => ({
+          expenses: [
+            ...s.expenses,
+            { id, amount, name, categoryId, currency, date: today, subscriptionId: null, createdAt: Date.now() },
+          ],
+        }));
+        return id;
+      },
+
+      addSubscription: (sub) => {
+        const id = nanoid();
+        set((s) => ({ subscriptions: [...s.subscriptions, { ...sub, id }] }));
+        return id;
+      },
+      updateSubscription: (id, partial) =>
+        set((s) => ({
+          subscriptions: s.subscriptions.map((sub) =>
+            sub.id === id ? { ...sub, ...partial } : sub
+          ),
+        })),
+      deleteSubscription: (id) =>
+        set((s) => ({ subscriptions: s.subscriptions.filter((sub) => sub.id !== id) })),
+      advanceSubscription: (subId) => {
+        const sub = get().subscriptions.find((s) => s.id === subId);
+        if (!sub || !sub.active) return;
+        const expenseId = nanoid();
+        const nextDate = new Date(sub.nextDate);
+        if (sub.cycle === "monthly") {
+          nextDate.setMonth(nextDate.getMonth() + 1);
+        } else {
+          nextDate.setFullYear(nextDate.getFullYear() + 1);
+        }
+        set((s) => ({
+          expenses: [
+            ...s.expenses,
+            {
+              id: expenseId,
+              amount: sub.amount,
+              name: sub.name,
+              categoryId: sub.categoryId,
+              currency: sub.currency,
+              date: sub.nextDate,
+              subscriptionId: sub.id,
+              createdAt: Date.now(),
+            },
+          ],
+          subscriptions: s.subscriptions.map((x) =>
+            x.id === subId ? { ...x, nextDate: nextDate.toISOString().split("T")[0] } : x
+          ),
+        }));
+      },
+
+      addInvoice: (invoice) => {
+        const id = nanoid();
+        set((s) => ({
+          invoices: [...s.invoices, { ...invoice, id, createdAt: Date.now() }],
+        }));
+        return id;
+      },
+      updateInvoice: (id, partial) =>
+        set((s) => ({
+          invoices: s.invoices.map((inv) => (inv.id === id ? { ...inv, ...partial } : inv)),
+        })),
+      deleteInvoice: (id) =>
+        set((s) => ({ invoices: s.invoices.filter((inv) => inv.id !== id) })),
+      markInvoicePaid: (invoiceId) =>
+        set((s) => ({
+          invoices: s.invoices.map((inv) =>
+            inv.id === invoiceId
+              ? { ...inv, status: "paid" as const, paidDate: new Date().toISOString().split("T")[0] }
+              : inv
+          ),
+        })),
+
+      addSavingGoal: (goal) => {
+        const id = nanoid();
+        set((s) => ({ savingGoals: [...s.savingGoals, { ...goal, id }] }));
+        return id;
+      },
+      updateSavingGoal: (id, partial) =>
+        set((s) => ({
+          savingGoals: s.savingGoals.map((g) => (g.id === id ? { ...g, ...partial } : g)),
+        })),
+      deleteSavingGoal: (id) =>
+        set((s) => ({ savingGoals: s.savingGoals.filter((g) => g.id !== id) })),
+      addToSavingGoal: (goalId, amount) =>
+        set((s) => ({
+          savingGoals: s.savingGoals.map((g) =>
+            g.id === goalId ? { ...g, savedAmount: g.savedAmount + amount } : g
+          ),
+        })),
+
+      addCategory: (cat) => {
+        const id = nanoid();
+        set((s) => ({ categories: [...s.categories, { ...cat, id }] }));
+        return id;
+      },
+
+      getExpensesByMonth: (monthKey) =>
+        get().expenses.filter((e) => e.date.startsWith(monthKey)),
+      getCategoryBreakdown: (monthKey) => {
+        const convert = useCurrencyStore.getState().convert;
+        const expenses = get().getExpensesByMonth(monthKey);
+        const cats = get().categories;
+        const map = new Map<string, number>();
+        expenses.forEach((e) => {
+          map.set(e.categoryId, (map.get(e.categoryId) || 0) + convert(e.amount, e.currency));
+        });
+        return cats
+          .filter((c) => map.has(c.id))
+          .map((c) => ({ category: c, total: map.get(c.id)! }))
+          .sort((a, b) => b.total - a.total);
+      },
+      getAvgMonthlyExpenses: (months = 6) => {
+        const convert = useCurrencyStore.getState().convert;
+        const now = new Date();
+        let total = 0;
+        let count = 0;
+        for (let i = 0; i < months; i++) {
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+          const monthExpenses = get().getExpensesByMonth(key);
+          if (monthExpenses.length > 0) {
+            total += monthExpenses.reduce((s, e) => s + convert(e.amount, e.currency), 0);
+            count++;
+          }
+        }
+        return count > 0 ? Math.round(total / count) : 0;
+      },
+      getSubTotal: () => {
+        const convert = useCurrencyStore.getState().convert;
+        return get()
+          .subscriptions.filter((s) => s.active)
+          .reduce((sum, s) => sum + convert(s.amount, s.currency), 0);
+      },
+      getCashFlowForecast: (months) => {
+        const mrr = useProjectStore.getState().getMRR();
+        const avgExp = get().getAvgMonthlyExpenses();
+        const now = new Date();
+        const result: { month: string; projected: number }[] = [];
+        for (let i = 1; i <= months; i++) {
+          const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+          const monthName = d.toLocaleDateString("en-US", { month: "short" });
+          result.push({ month: monthName, projected: mrr - avgExp });
+        }
+        return result;
+      },
+      getEmergencyMonths: () => {
+        const emGoal = get().savingGoals.find((g) => g.isEmergency);
+        if (!emGoal) return 0;
+        const avg = get().getAvgMonthlyExpenses();
+        if (avg === 0) return 0;
+        return emGoal.savedAmount / avg;
+      },
+      getMonthlyIncome: (monthKey) => {
+        const convert = useCurrencyStore.getState().convert;
+        return get()
+          .invoices.filter(
+            (inv) => inv.status === "paid" && inv.paidDate && inv.paidDate.startsWith(monthKey)
+          )
+          .reduce((sum, inv) => sum + convert(inv.amount, inv.currency), 0);
+      },
+      getCategoryById: (id) => get().categories.find((c) => c.id === id),
+    }),
+    {
+      name: "questline-finance",
+      version: 1,
+    }
+  )
+);
