@@ -4,7 +4,7 @@ import { useRouter } from "next/router";
 const NAV_ITEMS = [
   { href: "/", label: "Overview" },
   { href: "/sidequests", label: "Projects" },
-  { href: "/schedule", label: "Schedule" },
+  { href: "/running", label: "Running" },
   { href: "/finances", label: "Finances" },
   { href: "/settings", label: "Settings" },
 ];

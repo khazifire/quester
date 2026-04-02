@@ -51,6 +51,12 @@ export function ActiveProjects() {
           No active projects
         </p>
       )}
+      <Link
+        href="/sidequests"
+        className="text-[11px] text-muted-foreground hover:text-foreground mt-2 block"
+      >
+        View all &rarr;
+      </Link>
     </div>
   );
 }

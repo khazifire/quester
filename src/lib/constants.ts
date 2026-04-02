@@ -17,6 +17,31 @@ export const INVOICE_STATUSES = ["draft", "sent", "paid", "overdue"] as const;
 
 export const EVENT_TYPES = ["meeting", "focus", "personal"] as const;
 
+export const RUN_COST_TYPES = [
+  "travel",
+  "accommodation",
+  "food",
+  "gear",
+  "entry",
+  "other",
+] as const;
+
+export const RUN_COST_LABELS: Record<string, string> = {
+  travel: "Travel",
+  accommodation: "Accommodation",
+  food: "Food",
+  gear: "Gear",
+  entry: "Entry Fee",
+  other: "Other",
+};
+
+export const STANDARD_DISTANCES = [
+  { label: "5K", km: 5, tolerance: 0.3 },
+  { label: "10K", km: 10, tolerance: 0.5 },
+  { label: "Half Marathon", km: 21.1, tolerance: 0.5 },
+  { label: "Marathon", km: 42.195, tolerance: 1 },
+] as const;
+
 export const HABIT_CATEGORIES = [
   "system",
   "finance",
@@ -34,6 +59,7 @@ export const DEFAULT_CATEGORIES: ExpenseCategory[] = [
   { id: "cat-bills", name: "Bills", color: "#8a9ec4" },
   { id: "cat-subscriptions", name: "Subscriptions", color: "#c47a8a" },
   { id: "cat-personal", name: "Personal", color: "#8ac4a8" },
+  { id: "cat-running", name: "Running", color: "#c49a6a" },
 ];
 
 export const CATEGORY_COLOR_MAP: Record<string, string> = {

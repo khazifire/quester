@@ -3,22 +3,22 @@ import { MetricCard } from "@/components/shared/MetricCard";
 import { MaskedAmount } from "@/components/shared/MaskedAmount";
 import { HabitGrid } from "@/components/overview/HabitGrid";
 import { DailyExpenseChart } from "@/components/overview/DailyExpenseChart";
-import { TodaySchedule } from "@/components/overview/TodaySchedule";
+import { RecentRuns } from "@/components/overview/RecentRuns";
 import { ActiveProjects } from "@/components/overview/ActiveProjects";
+import { SavingGoals } from "@/components/overview/SavingGoals";
 import { useProjectStore } from "@/stores/projectStore";
+import { useFinanceStore } from "@/stores/financeStore";
 import { useCurrencyStore } from "@/stores/currencyStore";
 
 export default function OverviewPage() {
   const projects = useProjectStore((s) => s.projects);
   const issues = useProjectStore((s) => s.issues);
+  const invoices = useFinanceStore((s) => s.invoices);
   const convert = useCurrencyStore((s) => s.convert);
 
-  const pendingPayments = projects
-    .filter((p) => p.status === "active" || p.status === "delivered" || p.status === "invoiced")
-    .reduce((sum, p) => sum + convert(p.amount, p.currency), 0);
-  const pendingCount = projects.filter(
-    (p) => p.status === "active" || p.status === "delivered" || p.status === "invoiced"
-  ).length;
+  const pendingInvoices = invoices.filter((inv) => inv.status === "sent" || inv.status === "overdue");
+  const pendingPayments = pendingInvoices.reduce((sum, inv) => sum + convert(inv.amount, inv.currency), 0);
+  const pendingCount = pendingInvoices.length;
 
   const mrr = projects
     .filter((p) => p.billingType === "retainer" && p.status === "active")
@@ -40,7 +40,7 @@ export default function OverviewPage() {
         <MetricCard
           label="Pending"
           value={<MaskedAmount value={pendingPayments} />}
-          subtitle={`${pendingCount} projects`}
+          subtitle={`${pendingCount} invoice${pendingCount !== 1 ? "s" : ""}`}
         />
         <MetricCard
           label="MRR"
@@ -63,13 +63,14 @@ export default function OverviewPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-6">
             <DailyExpenseChart />
-            <TodaySchedule />
+            <RecentRuns />
           </div>
           <HabitGrid />
         </div>
 
-        <div className="border-l border-border pl-5">
+        <div className="border-l border-border pl-5 space-y-6">
           <ActiveProjects />
+          <SavingGoals />
         </div>
       </div>
     </AppShell>

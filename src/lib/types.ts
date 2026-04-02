@@ -119,6 +119,40 @@ export interface CalendarEvent {
   createdAt: number;
 }
 
+export interface Run {
+  id: string;
+  name: string;
+  date: string;
+  distanceKm: number;
+  durationSeconds: number;
+  eventId: string | null;
+  createdAt: number;
+}
+
+export interface RunningEvent {
+  id: string;
+  name: string;
+  location: string;
+  date: string;
+  distanceKm: number;
+  entryFee: number;
+  currency?: string;
+  status: "upcoming" | "completed" | "cancelled";
+  createdAt: number;
+}
+
+export interface RunCost {
+  id: string;
+  runId: string | null;
+  eventId: string | null;
+  type: "travel" | "accommodation" | "food" | "gear" | "entry" | "other";
+  name: string;
+  amount: number;
+  currency?: string;
+  expenseId: string;
+  createdAt: number;
+}
+
 export interface CurrencyWallet {
   currency: string;
   label: string;
