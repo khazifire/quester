@@ -16,6 +16,7 @@ interface HabitState {
   addHabit: (habit: Omit<Habit, "id" | "createdAt">) => string;
   updateHabit: (id: string, partial: Partial<Habit>) => void;
   deactivateHabit: (id: string) => void;
+  deleteHabit: (id: string) => void;
   toggleToday: (habitId: string) => void;
 
   getTodayStatus: () => HabitStatus[];
@@ -47,6 +48,11 @@ export const useHabitStore = create<HabitState>()(
       deactivateHabit: (id) =>
         set((s) => ({
           habits: s.habits.map((h) => (h.id === id ? { ...h, active: false } : h)),
+        })),
+      deleteHabit: (id) =>
+        set((s) => ({
+          habits: s.habits.filter((h) => h.id !== id),
+          logs: s.logs.filter((l) => l.habitId !== id),
         })),
       toggleToday: (habitId) => {
         const today = getDateStr(new Date());

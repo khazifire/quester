@@ -12,7 +12,9 @@ import {
 } from "@/components/ui/dialog";
 import { useAppStore } from "@/stores/appStore";
 import { useFinanceStore } from "@/stores/financeStore";
+import { useHabitStore } from "@/stores/habitStore";
 import { useCurrencyStore } from "@/stores/currencyStore";
+import { HABIT_CATEGORIES } from "@/lib/constants";
 import { toast } from "sonner";
 
 const AVAILABLE_CURRENCIES = [
@@ -27,6 +29,10 @@ export default function SettingsPage() {
   const addCategory = useFinanceStore((s) => s.addCategory);
   const updateCategory = useFinanceStore((s) => s.updateCategory);
   const deleteCategory = useFinanceStore((s) => s.deleteCategory);
+  const habits = useHabitStore((s) => s.habits);
+  const addHabit = useHabitStore((s) => s.addHabit);
+  const updateHabit = useHabitStore((s) => s.updateHabit);
+  const deleteHabit = useHabitStore((s) => s.deleteHabit);
   const {
     mainCurrency,
     wallets,
@@ -51,6 +57,16 @@ export default function SettingsPage() {
   const [editCatForm, setEditCatForm] = useState({ name: "", color: "#888888" });
   const [deleteCatOpen, setDeleteCatOpen] = useState(false);
   const [deleteCatId, setDeleteCatId] = useState<string | null>(null);
+
+  // Habit state
+  const [newHabitName, setNewHabitName] = useState("");
+  const [newHabitIcon, setNewHabitIcon] = useState("◐");
+  const [newHabitCategory, setNewHabitCategory] = useState<string>("system");
+  const [editHabitOpen, setEditHabitOpen] = useState(false);
+  const [editHabitId, setEditHabitId] = useState<string | null>(null);
+  const [editHabitForm, setEditHabitForm] = useState({ name: "", icon: "", category: "system", active: true });
+  const [deleteHabitOpen, setDeleteHabitOpen] = useState(false);
+  const [deleteHabitId, setDeleteHabitId] = useState<string | null>(null);
 
   function handleSaveIdentity() {
     setIdentityStatement(identity);
@@ -90,6 +106,47 @@ export default function SettingsPage() {
     deleteCategory(deleteCatId);
     toast.success("Category deleted");
     setDeleteCatOpen(false);
+  }
+
+  function handleAddHabit() {
+    if (!newHabitName.trim()) return;
+    addHabit({ name: newHabitName.trim(), icon: newHabitIcon, category: newHabitCategory as any, active: true });
+    setNewHabitName("");
+    setNewHabitIcon("◐");
+    setNewHabitCategory("system");
+    toast.success("Habit added");
+  }
+
+  function openEditHabit(id: string) {
+    const h = habits.find((x) => x.id === id);
+    if (!h) return;
+    setEditHabitId(id);
+    setEditHabitForm({ name: h.name, icon: h.icon, category: h.category, active: h.active });
+    setEditHabitOpen(true);
+  }
+
+  function handleEditHabit() {
+    if (!editHabitId || !editHabitForm.name.trim()) return;
+    updateHabit(editHabitId, {
+      name: editHabitForm.name.trim(),
+      icon: editHabitForm.icon,
+      category: editHabitForm.category as any,
+      active: editHabitForm.active,
+    });
+    toast.success("Habit updated");
+    setEditHabitOpen(false);
+  }
+
+  function confirmDeleteHabit(id: string) {
+    setDeleteHabitId(id);
+    setDeleteHabitOpen(true);
+  }
+
+  function handleDeleteHabit() {
+    if (!deleteHabitId) return;
+    deleteHabit(deleteHabitId);
+    toast.success("Habit deleted");
+    setDeleteHabitOpen(false);
   }
 
   function handleAddWallet() {
@@ -134,6 +191,8 @@ export default function SettingsPage() {
             Displayed on your overview dashboard as a daily reminder.
           </p>
         </section>
+
+       
 
         <div className="grid grid-cols-[1fr_320px] gap-8">
           <section>
@@ -301,6 +360,76 @@ export default function SettingsPage() {
             </div>
           </section>
         </div>
+
+         <section>
+          <div className="text-[12px] uppercase tracking-[0.06em] text-muted-foreground mb-3">
+            Systems (Habits)
+          </div>
+
+          <div className="bg-card mb-4 max-w-[700px]">
+            <div className="grid grid-cols-[32px_1fr_80px_60px_70px] gap-3 px-3 py-2 text-[11px] uppercase tracking-[0.06em] text-muted-foreground border-b border-border">
+              <span>Icon</span>
+              <span>Name</span>
+              <span>Category</span>
+              <span>Status</span>
+              <span className="text-right">Actions</span>
+            </div>
+            {habits.map((h) => (
+              <div
+                key={h.id}
+                className="grid grid-cols-[32px_1fr_80px_60px_70px] gap-3 px-3 py-2.5 text-[13px] border-b border-border last:border-0"
+              >
+                <span>{h.icon}</span>
+                <span className={h.active ? "text-foreground" : "text-muted-foreground line-through"}>{h.name}</span>
+                <span className="text-[11px] text-muted-foreground capitalize">{h.category}</span>
+                <span className="text-[11px] text-muted-foreground">{h.active ? "active" : "off"}</span>
+                <span className="flex items-center justify-end gap-2">
+                  <button
+                    className="text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
+                    onClick={() => openEditHabit(h.id)}
+                  >
+                    [edit]
+                  </button>
+                  <button
+                    className="text-[11px] text-muted-foreground hover:text-destructive cursor-pointer"
+                    onClick={() => confirmDeleteHabit(h.id)}
+                  >
+                    [del]
+                  </button>
+                </span>
+              </div>
+            ))}
+            {habits.length === 0 && (
+              <p className="text-[12px] text-muted-foreground text-center py-4">No habits yet</p>
+            )}
+          </div>
+
+          <div className="flex gap-2 items-end max-w-[700px]">
+            <Input
+              value={newHabitIcon}
+              onChange={(e) => setNewHabitIcon(e.target.value)}
+              placeholder="Icon"
+              className="w-16"
+            />
+            <Input
+              value={newHabitName}
+              onChange={(e) => setNewHabitName(e.target.value)}
+              placeholder="Habit name"
+              className="flex-1"
+            />
+            <Select value={newHabitCategory} onValueChange={(v) => setNewHabitCategory(v ?? "system")}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {HABIT_CATEGORIES.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={handleAddHabit}>Add</Button>
+          </div>
+        </section>
       </div>
 
       <Dialog open={editCatOpen} onOpenChange={setEditCatOpen}>
@@ -324,6 +453,74 @@ export default function SettingsPage() {
           </div>
           <DialogFooter>
             <Button onClick={handleEditCat}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editHabitOpen} onOpenChange={setEditHabitOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit habit</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3 py-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Icon"
+                value={editHabitForm.icon}
+                onChange={(e) => setEditHabitForm((f) => ({ ...f, icon: e.target.value }))}
+                className="w-16"
+              />
+              <Input
+                placeholder="Name"
+                value={editHabitForm.name}
+                onChange={(e) => setEditHabitForm((f) => ({ ...f, name: e.target.value }))}
+                className="flex-1"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Select value={editHabitForm.category} onValueChange={(v) => setEditHabitForm((f) => ({ ...f, category: v ?? "system" }))}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {HABIT_CATEGORIES.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={editHabitForm.active ? "active" : "inactive"} onValueChange={(v) => setEditHabitForm((f) => ({ ...f, active: v === "active" }))}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleEditHabit}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteHabitOpen} onOpenChange={setDeleteHabitOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete habit?</DialogTitle>
+          </DialogHeader>
+          <p className="text-[13px] text-muted-foreground py-4 px-6">
+            This will delete the habit and all its log history. This cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteHabitOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleDeleteHabit}
+              className="!bg-destructive !text-destructive-foreground !border-destructive"
+            >
+              Delete
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

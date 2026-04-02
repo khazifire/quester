@@ -15,7 +15,7 @@ export const useAppStore = create<AppState>()(
     (set) => ({
       showAmounts: true,
       identityStatement:
-        "I am someone who manages money intentionally and delivers quality work on time.",
+        "I am just a little human on planet earth, trying to survive",
       theme: "sage",
       toggleAmounts: () => set((s) => ({ showAmounts: !s.showAmounts })),
       setIdentityStatement: (text) => set({ identityStatement: text }),
