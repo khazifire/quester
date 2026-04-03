@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { RunningNav } from "@/components/layout/RunningNav";
 import { MaskedAmount } from "@/components/shared/MaskedAmount";
@@ -25,9 +25,26 @@ import { RUN_COST_TYPES, RUN_COST_LABELS } from "@/lib/constants";
 import type { Run, RunCost } from "@/lib/types";
 import { toast } from "sonner";
 
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (const char of line) {
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === "," && !inQuotes) {
+      result.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
 export default function RunLogPage() {
   const runs = useRunningStore((s) => s.runs);
-  const events = useRunningStore((s) => s.events);
   const addRun = useRunningStore((s) => s.addRun);
   const updateRun = useRunningStore((s) => s.updateRun);
   const deleteRun = useRunningStore((s) => s.deleteRun);
@@ -49,7 +66,6 @@ export default function RunLogPage() {
     date: getToday(),
     distanceKm: "",
     duration: "",
-    eventId: "",
   });
 
   function handleAdd() {
@@ -64,10 +80,9 @@ export default function RunLogPage() {
       date: addForm.date,
       distanceKm: dist,
       durationSeconds: dur,
-      eventId: addForm.eventId || null,
     });
     toast.success("Run logged");
-    setAddForm({ name: "", date: getToday(), distanceKm: "", duration: "", eventId: "" });
+    setAddForm({ name: "", date: getToday(), distanceKm: "", duration: "" });
     setAddOpen(false);
   }
 
@@ -79,7 +94,6 @@ export default function RunLogPage() {
     date: "",
     distanceKm: "",
     duration: "",
-    eventId: "",
   });
 
   function openEdit(run: Run) {
@@ -89,7 +103,6 @@ export default function RunLogPage() {
       date: run.date,
       distanceKm: String(run.distanceKm),
       duration: formatDuration(run.durationSeconds),
-      eventId: run.eventId || "",
     });
     setEditOpen(true);
   }
@@ -104,7 +117,6 @@ export default function RunLogPage() {
       date: editForm.date,
       distanceKm: dist,
       durationSeconds: dur,
-      eventId: editForm.eventId || null,
     });
     toast.success("Run updated");
     setEditOpen(false);
@@ -157,20 +169,107 @@ export default function RunLogPage() {
   const detailCosts = detailRun ? getRunCosts(detailRun.id) : [];
   const detailTotal = detailCosts.reduce((s, c) => s + convert(c.amount, c.currency), 0);
 
+  // CSV Import dialog
+  const [importOpen, setImportOpen] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [importPreview, setImportPreview] = useState<{ name: string; date: string; distanceKm: number; durationSeconds: number }[]>([]);
+  const [importError, setImportError] = useState("");
+
+  function downloadTemplate() {
+    const csv = [
+      "name,date,distanceKm,duration",
+      '"Morning Run","2024-01-15","5","25:30"',
+      '"Evening 10K","2024-01-20","10","52:15"',
+      '"Long Run","2024-01-28","15","1:22:45"',
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "runs-template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportError("");
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const text = ev.target?.result as string;
+        const lines = text.trim().split(/\r?\n/);
+        if (lines.length < 2) {
+          setImportError("File is empty or has no data rows");
+          return;
+        }
+        const headers = parseCSVLine(lines[0]).map((h) => h.toLowerCase().replace(/\s/g, ""));
+        const nameIdx = headers.indexOf("name");
+        const dateIdx = headers.indexOf("date");
+        const distIdx = headers.indexOf("distancekm");
+        const durIdx = headers.indexOf("duration");
+        if (nameIdx < 0 || dateIdx < 0 || distIdx < 0 || durIdx < 0) {
+          setImportError("CSV must have columns: name, date, distanceKm, duration");
+          return;
+        }
+        const rows: { name: string; date: string; distanceKm: number; durationSeconds: number }[] = [];
+        for (let i = 1; i < lines.length; i++) {
+          if (!lines[i].trim()) continue;
+          const vals = parseCSVLine(lines[i]);
+          const name = vals[nameIdx]?.replace(/"/g, "").trim();
+          const date = vals[dateIdx]?.replace(/"/g, "").trim();
+          const dist = Number(vals[distIdx]?.replace(/"/g, "").trim());
+          const dur = parseDuration(vals[durIdx]?.replace(/"/g, "").trim() ?? "");
+          if (!name || !date || !dist || dur === null) continue;
+          rows.push({ name, date, distanceKm: dist, durationSeconds: dur });
+        }
+        if (rows.length === 0) {
+          setImportError("No valid rows found. Check the format matches the template.");
+          return;
+        }
+        setImportPreview(rows);
+      } catch {
+        setImportError("Failed to parse file");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function handleImport() {
+    for (const row of importPreview) {
+      addRun(row);
+    }
+    toast.success(`Imported ${importPreview.length} run${importPreview.length !== 1 ? "s" : ""}`);
+    setImportPreview([]);
+    setImportError("");
+    if (fileRef.current) fileRef.current.value = "";
+    setImportOpen(false);
+  }
+
   return (
     <AppShell
       title="Running"
       actions={
-        <Button
-          variant="outline"
-          className="text-[12px] h-7 px-3 cursor-pointer"
-          onClick={() => {
-            setAddForm({ name: "", date: getToday(), distanceKm: "", duration: "", eventId: "" });
-            setAddOpen(true);
-          }}
-        >
-          + Log run
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="text-[12px] h-7 px-3 cursor-pointer"
+            onClick={() => setImportOpen(true)}
+          >
+            Import
+          </Button>
+          <Button
+            variant="outline"
+            className="text-[12px] h-7 px-3 cursor-pointer"
+            onClick={() => {
+              setAddForm({ name: "", date: getToday(), distanceKm: "", duration: "" });
+              setAddOpen(true);
+            }}
+          >
+            + Log run
+          </Button>
+        </div>
       }
     >
       <RunningNav />
@@ -204,9 +303,7 @@ export default function RunLogPage() {
           >
             {r.name}
           </button>
-          <span className="font-mono tabular-nums text-[12px]">
-            {r.distanceKm} km
-          </span>
+          <span className="font-mono tabular-nums text-[12px]">{r.distanceKm} km</span>
           <span className="font-mono tabular-nums text-[12px] text-muted-foreground">
             {formatDuration(r.durationSeconds)}
           </span>
@@ -272,24 +369,6 @@ export default function RunLogPage() {
                 className="flex-1"
               />
             </div>
-            {events.length > 0 && (
-              <Select
-                value={addForm.eventId}
-                onValueChange={(v) => setAddForm((f) => ({ ...f, eventId: v === "none" ? "" : (v ?? "") }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Link to event (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No event</SelectItem>
-                  {events.map((ev) => (
-                    <SelectItem key={ev.id} value={ev.id}>
-                      {ev.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
           </div>
           <DialogFooter>
             <Button onClick={handleAdd}>Log run</Button>
@@ -330,24 +409,6 @@ export default function RunLogPage() {
                 className="flex-1"
               />
             </div>
-            {events.length > 0 && (
-              <Select
-                value={editForm.eventId}
-                onValueChange={(v) => setEditForm((f) => ({ ...f, eventId: v === "none" ? "" : (v ?? "") }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Link to event (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No event</SelectItem>
-                  {events.map((ev) => (
-                    <SelectItem key={ev.id} value={ev.id}>
-                      {ev.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
           </div>
           <DialogFooter>
             <Button onClick={handleEdit}>Save</Button>
@@ -370,7 +431,7 @@ export default function RunLogPage() {
             </Button>
             <Button
               onClick={handleDelete}
-              className="!bg-destructive !text-destructive-foreground !border-destructive"
+              className="bg-destructive! text-destructive-foreground! border-destructive!"
             >
               Delete
             </Button>
@@ -499,6 +560,79 @@ export default function RunLogPage() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Import CSV Dialog */}
+      <Dialog open={importOpen} onOpenChange={(open) => {
+        setImportOpen(open);
+        if (!open) { setImportPreview([]); setImportError(""); }
+      }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Import runs from CSV</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-[12px] text-muted-foreground">
+              Download the template, fill in your runs, then import the file.
+              Columns: <span className="font-mono">name, date, distanceKm, duration</span>
+            </p>
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1 text-[12px]" onClick={downloadTemplate}>
+                Download template
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1 text-[12px]"
+                onClick={() => fileRef.current?.click()}
+              >
+                Choose CSV file
+              </Button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+            </div>
+
+            {importError && (
+              <p className="text-[12px] text-destructive">{importError}</p>
+            )}
+
+            {importPreview.length > 0 && (
+              <div>
+                <p className="text-[12px] text-muted-foreground mb-2">
+                  {importPreview.length} run{importPreview.length !== 1 ? "s" : ""} found — preview:
+                </p>
+                <div className="max-h-48 overflow-y-auto space-y-1">
+                  {importPreview.slice(0, 10).map((r, i) => (
+                    <div key={i} className="flex items-baseline gap-3 text-[12px] py-1 border-b border-border last:border-0">
+                      <span className="flex-1 truncate">{r.name}</span>
+                      <span className="font-mono tabular-nums text-muted-foreground">{r.distanceKm} km</span>
+                      <span className="font-mono tabular-nums text-muted-foreground">{formatDuration(r.durationSeconds)}</span>
+                      <span className="font-mono tabular-nums text-muted-foreground">{r.date}</span>
+                    </div>
+                  ))}
+                  {importPreview.length > 10 && (
+                    <p className="text-[11px] text-muted-foreground text-center py-1">
+                      +{importPreview.length - 10} more
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleImport}
+              disabled={importPreview.length === 0}
+            >
+              Import {importPreview.length > 0 ? `${importPreview.length} runs` : ""}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </AppShell>

@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { useRunningStore } from "@/stores/runningStore";
 import { useCurrencyStore } from "@/stores/currencyStore";
-import { formatDate, getToday } from "@/lib/utils";
+import { formatDate, formatDuration, parseDuration, getToday } from "@/lib/utils";
 import { RUN_COST_TYPES, RUN_COST_LABELS, RUNNING_EVENT_TYPES, RUNNING_EVENT_TYPE_LABELS } from "@/lib/constants";
 import type { RunningEvent, RunCost } from "@/lib/types";
 import { toast } from "sonner";
@@ -85,6 +85,7 @@ export default function EventsPage() {
     date: "",
     distanceKm: "",
     type: "road" as RunningEvent["type"],
+    finishTime: "",
     status: "upcoming" as RunningEvent["status"],
   });
 
@@ -96,6 +97,7 @@ export default function EventsPage() {
       date: ev.date,
       distanceKm: String(ev.distanceKm),
       type: ev.type ?? "road",
+      finishTime: ev.finishSeconds ? formatDuration(ev.finishSeconds) : "",
       status: ev.status,
     });
     setEditOpen(true);
@@ -103,12 +105,16 @@ export default function EventsPage() {
 
   function handleEdit() {
     if (!editId || !editForm.name.trim()) return;
+    const finishSeconds = editForm.finishTime.trim()
+      ? parseDuration(editForm.finishTime.trim()) ?? undefined
+      : undefined;
     updateEvent(editId, {
       name: editForm.name.trim(),
       location: editForm.location.trim(),
       date: editForm.date,
       distanceKm: Number(editForm.distanceKm) || 0,
       type: editForm.type,
+      finishSeconds,
       status: editForm.status,
     });
     toast.success("Event updated");
@@ -162,11 +168,13 @@ export default function EventsPage() {
   const detailCosts = detailEvent ? getEventCosts(detailEvent.id) : [];
   const detailTotal = detailCosts.reduce((s, c) => s + convert(c.amount, c.currency), 0);
 
+  const COLS = "grid-cols-[1fr_60px_60px_80px_80px_70px]";
+
   function renderEventRow(ev: RunningEvent) {
     return (
       <div
         key={ev.id}
-        className="grid grid-cols-[1fr_100px_70px_80px_80px_70px] gap-3 py-2.5 text-[13px] border-b border-border last:border-0 hover:bg-white/[0.02] transition-colors"
+        className={`grid ${COLS} gap-3 py-2.5 text-[13px] border-b border-border last:border-0 hover:bg-white/[0.02] transition-colors`}
       >
         <button
           className="text-foreground truncate text-left hover:underline cursor-pointer"
@@ -174,15 +182,17 @@ export default function EventsPage() {
         >
           {ev.name}
         </button>
-        <span className="text-[12px] text-muted-foreground truncate">{ev.location || "—"}</span>
+        <span className="text-[11px] text-muted-foreground capitalize">
+          {RUNNING_EVENT_TYPE_LABELS[ev.type ?? "road"]}
+        </span>
         <span className="font-mono tabular-nums text-[12px]">
           {ev.distanceKm > 0 ? `${ev.distanceKm} km` : "—"}
         </span>
+        <span className="font-mono tabular-nums text-[12px] text-muted-foreground">
+          {ev.finishSeconds ? formatDuration(ev.finishSeconds) : "—"}
+        </span>
         <span className="text-[11px] text-muted-foreground font-mono tabular-nums">
           {formatDate(ev.date)}
-        </span>
-        <span className="font-mono tabular-nums text-[12px] text-right">
-          {ev.entryFee > 0 ? <MaskedAmount value={ev.entryFee} currency={ev.currency} /> : "—"}
         </span>
         <span className="flex items-center justify-end gap-2">
           <button
@@ -226,12 +236,12 @@ export default function EventsPage() {
           Upcoming
         </span>
 
-        <div className="grid grid-cols-[1fr_100px_70px_80px_80px_70px] gap-3 px-0 py-2.5 text-[11px] uppercase tracking-[0.06em] text-muted-foreground border-b border-border">
+        <div className={`grid ${COLS} gap-3 px-0 py-2.5 text-[11px] uppercase tracking-[0.06em] text-muted-foreground border-b border-border`}>
           <span>Name</span>
-          <span>Location</span>
+          <span>Type</span>
           <span>Distance</span>
+          <span>Finish</span>
           <span>Date</span>
-          <span className="text-right">Entry fee</span>
           <span className="text-right">Actions</span>
         </div>
 
@@ -250,12 +260,12 @@ export default function EventsPage() {
             Past events
           </span>
 
-          <div className="grid grid-cols-[1fr_100px_70px_80px_80px_70px] gap-3 px-0 py-2.5 text-[11px] uppercase tracking-[0.06em] text-muted-foreground border-b border-border">
+          <div className={`grid ${COLS} gap-3 px-0 py-2.5 text-[11px] uppercase tracking-[0.06em] text-muted-foreground border-b border-border`}>
             <span>Name</span>
-            <span>Location</span>
+            <span>Type</span>
             <span>Distance</span>
+            <span>Finish</span>
             <span>Date</span>
-            <span className="text-right">Entry fee</span>
             <span className="text-right">Actions</span>
           </div>
 
@@ -289,7 +299,7 @@ export default function EventsPage() {
               />
               <Select
                 value={addForm.distanceKm}
-                onValueChange={(v) => setAddForm((f) => ({ ...f, distanceKm: v }))}
+                onValueChange={(v) => setAddForm((f) => ({ ...f, distanceKm: v ?? "" }))}
               >
                 <SelectTrigger className="flex-1">
                   <SelectValue placeholder="Distance" />
@@ -374,7 +384,7 @@ export default function EventsPage() {
               />
               <Select
                 value={editForm.distanceKm}
-                onValueChange={(v) => setEditForm((f) => ({ ...f, distanceKm: v }))}
+                onValueChange={(v) => setEditForm((f) => ({ ...f, distanceKm: v ?? "" }))}
               >
                 <SelectTrigger className="flex-1">
                   <SelectValue placeholder="Distance" />
@@ -402,6 +412,11 @@ export default function EventsPage() {
                 ))}
               </SelectContent>
             </Select>
+            <Input
+              placeholder="Finish time (H:MM:SS or MM:SS)"
+              value={editForm.finishTime}
+              onChange={(e) => setEditForm((f) => ({ ...f, finishTime: e.target.value }))}
+            />
             <Select
               value={editForm.status}
               onValueChange={(v) => setEditForm((f) => ({ ...f, status: v as RunningEvent["status"] }))}
@@ -437,7 +452,7 @@ export default function EventsPage() {
             </Button>
             <Button
               onClick={handleDelete}
-              className="!bg-destructive !text-destructive-foreground !border-destructive"
+              className="bg-destructive! text-destructive-foreground! border-destructive!"
             >
               Delete
             </Button>
@@ -465,12 +480,14 @@ export default function EventsPage() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-[11px] text-muted-foreground uppercase mb-0.5">Date</div>
-                  <div className="font-mono tabular-nums">{formatDate(detailEvent.date)}</div>
+                  <div className="text-[11px] text-muted-foreground uppercase mb-0.5">Finish</div>
+                  <div className="font-mono tabular-nums">
+                    {detailEvent.finishSeconds ? formatDuration(detailEvent.finishSeconds) : "—"}
+                  </div>
                 </div>
                 <div>
-                  <div className="text-[11px] text-muted-foreground uppercase mb-0.5">Status</div>
-                  <div className="capitalize">{detailEvent.status}</div>
+                  <div className="text-[11px] text-muted-foreground uppercase mb-0.5">Date</div>
+                  <div className="font-mono tabular-nums">{formatDate(detailEvent.date)}</div>
                 </div>
               </div>
 

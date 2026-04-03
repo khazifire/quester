@@ -4,8 +4,10 @@ import { useRunningStore } from "@/stores/runningStore";
 import { formatDate, getMonthKey, getWeekStart } from "@/lib/utils";
 
 export function RecentRuns() {
-  const runs = useRunningStore((s) => s.runs);
+  const getAllActivities = useRunningStore((s) => s.getAllActivities);
   const events = useRunningStore((s) => s.events);
+
+  const activities = getAllActivities();
 
   const now = new Date();
   const currentDay = now.getDate();
@@ -26,32 +28,32 @@ export function RecentRuns() {
     const result: { day: number; km: number; future: boolean }[] = [];
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      const km = runs
-        .filter((r) => r.date === dateStr)
-        .reduce((sum, r) => sum + r.distanceKm, 0);
+      const km = activities
+        .filter((a) => a.date === dateStr)
+        .reduce((sum, a) => sum + a.distanceKm, 0);
       result.push({ day: d, km, future: d > currentDay });
     }
     return result;
-  }, [runs, daysInMonth, currentDay]);
+  }, [activities, daysInMonth, currentDay]);
 
   const maxKm = Math.max(...dailyKm.map((d) => d.km), 1);
 
   // Metrics
   const weekKm = useMemo(
     () =>
-      runs
-        .filter((r) => r.date >= weekStartStr && r.date <= weekEndStr)
-        .reduce((s, r) => s + r.distanceKm, 0),
-    [runs, weekStartStr, weekEndStr]
+      activities
+        .filter((a) => a.date >= weekStartStr && a.date <= weekEndStr)
+        .reduce((s, a) => s + a.distanceKm, 0),
+    [activities, weekStartStr, weekEndStr]
   );
   const monthKm = useMemo(
     () =>
-      runs
-        .filter((r) => r.date.startsWith(monthKey))
-        .reduce((s, r) => s + r.distanceKm, 0),
-    [runs, monthKey]
+      activities
+        .filter((a) => a.date.startsWith(monthKey))
+        .reduce((s, a) => s + a.distanceKm, 0),
+    [activities, monthKey]
   );
-  const totalKm = runs.reduce((s, r) => s + r.distanceKm, 0);
+  const totalKm = activities.reduce((s, a) => s + a.distanceKm, 0);
 
   const upcoming = useMemo(
     () =>
@@ -123,10 +125,7 @@ export function RecentRuns() {
             Upcoming events
           </div>
           {upcoming.map((ev) => (
-            <div
-              key={ev.id}
-              className="flex items-baseline gap-3 py-1.5"
-            >
+            <div key={ev.id} className="flex items-baseline gap-3 py-1.5">
               <span className="text-[11px] text-muted-foreground font-mono tabular-nums w-16 shrink-0">
                 {formatDate(ev.date)}
               </span>
@@ -142,7 +141,7 @@ export function RecentRuns() {
       )}
 
       <Link
-        href="/running"
+        href="/running/overview"
         className="text-[11px] text-muted-foreground hover:text-foreground mt-3 block"
       >
         View all &rarr;

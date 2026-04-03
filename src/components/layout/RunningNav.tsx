@@ -2,6 +2,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 
 const RUNNING_TABS = [
+  { href: "/running/overview", label: "Overview" },
   { href: "/running", label: "Log" },
   { href: "/running/events", label: "Events" },
   { href: "/running/stats", label: "Stats" },

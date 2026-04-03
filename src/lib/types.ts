@@ -146,6 +146,7 @@ export interface RunningEvent {
   date: string;
   distanceKm: number;
   type: "road" | "spartan" | "other";
+  finishSeconds?: number;
   entryFee: number;
   currency?: string;
   status: "upcoming" | "completed" | "cancelled";
