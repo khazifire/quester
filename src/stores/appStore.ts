@@ -5,9 +5,11 @@ interface AppState {
   showAmounts: boolean;
   identityStatement: string;
   theme: "sage" | "dark" | "light";
+  onboarded: boolean;
   toggleAmounts: () => void;
   setIdentityStatement: (text: string) => void;
   setTheme: (theme: "sage" | "dark" | "light") => void;
+  setOnboarded: () => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -17,9 +19,11 @@ export const useAppStore = create<AppState>()(
       identityStatement:
         "I am just a little human on planet earth, trying to survive",
       theme: "sage",
+      onboarded: false,
       toggleAmounts: () => set((s) => ({ showAmounts: !s.showAmounts })),
       setIdentityStatement: (text) => set({ identityStatement: text }),
       setTheme: (theme) => set({ theme }),
+      setOnboarded: () => set({ onboarded: true }),
     }),
     {
       name: "questline-app",
