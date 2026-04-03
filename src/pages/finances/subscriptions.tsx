@@ -3,14 +3,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { FinanceNav } from "@/components/layout/FinanceNav";
 import { MaskedAmount } from "@/components/shared/MaskedAmount";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { AppDialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -122,53 +115,7 @@ export default function SubscriptionsPage() {
   }
 
   return (
-    <AppShell
-      title="Finances"
-      actions={
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger render={<Button size="sm" />}>
-            + Add
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add subscription</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-3 py-4">
-              <Input placeholder="Name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-              <div className="flex gap-2">
-                <Input placeholder="Amount" type="number" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} className="flex-1" />
-                <Select value={form.currency} onValueChange={(v) => setForm((f) => ({ ...f, currency: v ?? mainCurrency }))}>
-                  <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {wallets.map((w) => (
-                      <SelectItem key={w.currency} value={w.currency}>{w.currency}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Select value={form.categoryId} onValueChange={(v) => setForm((f) => ({ ...f, categoryId: v ?? "" }))}>
-                <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
-                <SelectContent>
-                  {categories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={form.cycle} onValueChange={(v) => setForm((f) => ({ ...f, cycle: (v ?? "monthly") as "monthly" | "yearly" }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                  <SelectItem value="yearly">Yearly</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <DialogFooter>
-              <Button onClick={handleCreate}>Add</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      }
-    >
+    <AppShell title="Finances" actions={<Button size="sm" onClick={() => setOpen(true)}>+ Add</Button>}>
       <FinanceNav />
 
       <div className="flex justify-between items-baseline mb-4">
@@ -235,80 +182,45 @@ export default function SubscriptionsPage() {
         </div>
       </div>
 
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit subscription</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-3 py-4">
-            <Input
-              placeholder="Name"
-              value={editForm.name}
-              onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
-            />
-            <div className="flex gap-2">
-              <Input
-                placeholder="Amount"
-                type="number"
-                value={editForm.amount}
-                onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))}
-                className="flex-1"
-              />
-              <Select value={editForm.currency} onValueChange={(v) => setEditForm((f) => ({ ...f, currency: v ?? mainCurrency }))}>
-                <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {wallets.map((w) => (
-                    <SelectItem key={w.currency} value={w.currency}>{w.currency}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Select value={editForm.categoryId} onValueChange={(v) => setEditForm((f) => ({ ...f, categoryId: v ?? "" }))}>
-              <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
-              <SelectContent>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={editForm.cycle} onValueChange={(v) => setEditForm((f) => ({ ...f, cycle: (v ?? "monthly") as "monthly" | "yearly" }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="monthly">Monthly</SelectItem>
-                <SelectItem value="yearly">Yearly</SelectItem>
-              </SelectContent>
-            </Select>
-            <label className="flex items-center gap-2 text-[13px] text-foreground">
-              <input
-                type="checkbox"
-                checked={editForm.active}
-                onChange={(e) => setEditForm((f) => ({ ...f, active: e.target.checked }))}
-              />
-              Active
-            </label>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleEdit}>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AppDialog title="Edit subscription" open={editOpen} onOpenChange={setEditOpen}
+        footer={<Button onClick={handleEdit}>Save</Button>}
+      >
+        <Input placeholder="Name" value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} />
+        <div className="flex gap-2">
+          <Input placeholder="Amount" type="number" value={editForm.amount}
+            onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))} className="flex-1" />
+          <Select value={editForm.currency} onValueChange={(v) => setEditForm((f) => ({ ...f, currency: v ?? mainCurrency }))}>
+            <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {wallets.map((w) => (<SelectItem key={w.currency} value={w.currency}>{w.currency}</SelectItem>))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Select value={editForm.categoryId} onValueChange={(v) => setEditForm((f) => ({ ...f, categoryId: v ?? "" }))}>
+          <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
+          <SelectContent>
+            {categories.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
+          </SelectContent>
+        </Select>
+        <Select value={editForm.cycle} onValueChange={(v) => setEditForm((f) => ({ ...f, cycle: (v ?? "monthly") as "monthly" | "yearly" }))}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="monthly">Monthly</SelectItem>
+            <SelectItem value="yearly">Yearly</SelectItem>
+          </SelectContent>
+        </Select>
+        <label className="flex items-center gap-2 text-[13px] text-foreground">
+          <input type="checkbox" checked={editForm.active}
+            onChange={(e) => setEditForm((f) => ({ ...f, active: e.target.checked }))} />
+          Active
+        </label>
+      </AppDialog>
 
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete subscription?</DialogTitle>
-          </DialogHeader>
-          <p className="text-[13px] text-muted-foreground py-4 px-6">
-            This action cannot be undone.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
-            <Button onClick={handleDelete} className="!bg-destructive !text-destructive-foreground !border-destructive">
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AppDialog title="Delete subscription?" open={deleteOpen} onOpenChange={setDeleteOpen}
+        footer={<><Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button><Button onClick={handleDelete} className="bg-destructive! text-destructive-foreground! border-destructive!">Delete</Button></>}
+      >
+        <p className="text-[13px] text-muted-foreground">This action cannot be undone.</p>
+      </AppDialog>
     </AppShell>
   );
 }

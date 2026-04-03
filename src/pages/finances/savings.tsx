@@ -4,14 +4,7 @@ import { FinanceNav } from "@/components/layout/FinanceNav";
 import { SavingGoalCard } from "@/components/finances/SavingGoalCard";
 import { MaskedAmount } from "@/components/shared/MaskedAmount";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { AppDialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -134,47 +127,7 @@ export default function SavingsPage() {
   }
 
   return (
-    <AppShell
-      title="Finances"
-      actions={
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger render={<Button size="sm" />}>
-            + New goal
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>New saving goal</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-3 py-4">
-              <Input placeholder="Goal name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-              <div className="flex gap-2">
-                <Input placeholder="Target amount" type="number" value={form.target} onChange={(e) => setForm((f) => ({ ...f, target: e.target.value }))} className="flex-1" />
-                <Select value={form.currency} onValueChange={(v) => setForm((f) => ({ ...f, currency: v ?? mainCurrency }))}>
-                  <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {wallets.map((w) => (
-                      <SelectItem key={w.currency} value={w.currency}>{w.currency}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Input placeholder="Monthly contribution" type="number" value={form.monthly} onChange={(e) => setForm((f) => ({ ...f, monthly: e.target.value }))} />
-              <label className="flex items-center gap-2 text-[13px] text-foreground">
-                <input
-                  type="checkbox"
-                  checked={form.isEmergency}
-                  onChange={(e) => setForm((f) => ({ ...f, isEmergency: e.target.checked }))}
-                />
-                Emergency fund
-              </label>
-            </div>
-            <DialogFooter>
-              <Button onClick={handleCreate}>Create</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      }
-    >
+    <AppShell title="Finances" actions={<Button size="sm" onClick={() => setOpen(true)}>+ New goal</Button>}>
       <FinanceNav />
 
       <div className="grid grid-cols-3 gap-px bg-border">
@@ -182,125 +135,72 @@ export default function SavingsPage() {
           <div key={g.id} className="relative group">
             <SavingGoalCard goal={g} variant="full" />
             <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button
-                className="text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
-                onClick={() => openFund(g.id)}
-              >
-                [+fund]
-              </button>
-              <button
-                className="text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
-                onClick={() => openEdit(g.id)}
-              >
-                [edit]
-              </button>
-              <button
-                className="text-[11px] text-muted-foreground hover:text-destructive cursor-pointer"
-                onClick={() => confirmDelete(g.id)}
-              >
-                [del]
-              </button>
+              <button className="text-[11px] text-muted-foreground hover:text-foreground cursor-pointer" onClick={() => openFund(g.id)}>[+fund]</button>
+              <button className="text-[11px] text-muted-foreground hover:text-foreground cursor-pointer" onClick={() => openEdit(g.id)}>[edit]</button>
+              <button className="text-[11px] text-muted-foreground hover:text-destructive cursor-pointer" onClick={() => confirmDelete(g.id)}>[del]</button>
             </div>
           </div>
         ))}
       </div>
 
       {savingGoals.length === 0 && (
-        <p className="text-[12px] text-muted-foreground text-center py-10">
-          No saving goals yet
-        </p>
+        <p className="text-[12px] text-muted-foreground text-center py-10">No saving goals yet</p>
       )}
 
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit saving goal</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-3 py-4">
-            <Input
-              placeholder="Goal name"
-              value={editForm.name}
-              onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
-            />
-            <div className="flex gap-2">
-              <Input
-                placeholder="Target amount"
-                type="number"
-                value={editForm.target}
-                onChange={(e) => setEditForm((f) => ({ ...f, target: e.target.value }))}
-                className="flex-1"
-              />
-              <Select value={editForm.currency} onValueChange={(v) => setEditForm((f) => ({ ...f, currency: v ?? mainCurrency }))}>
-                <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {wallets.map((w) => (
-                    <SelectItem key={w.currency} value={w.currency}>{w.currency}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Input
-              placeholder="Saved amount"
-              type="number"
-              value={editForm.saved}
-              onChange={(e) => setEditForm((f) => ({ ...f, saved: e.target.value }))}
-            />
-            <Input
-              placeholder="Monthly contribution"
-              type="number"
-              value={editForm.monthly}
-              onChange={(e) => setEditForm((f) => ({ ...f, monthly: e.target.value }))}
-            />
-            <label className="flex items-center gap-2 text-[13px] text-foreground">
-              <input
-                type="checkbox"
-                checked={editForm.isEmergency}
-                onChange={(e) => setEditForm((f) => ({ ...f, isEmergency: e.target.checked }))}
-              />
-              Emergency fund
-            </label>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleEdit}>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AppDialog title="New saving goal" open={open} onOpenChange={setOpen}
+        footer={<Button onClick={handleCreate}>Create</Button>}
+      >
+        <Input placeholder="Goal name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+        <div className="flex gap-2">
+          <Input placeholder="Target amount" type="number" value={form.target}
+            onChange={(e) => setForm((f) => ({ ...f, target: e.target.value }))} className="flex-1" />
+          <Select value={form.currency} onValueChange={(v) => setForm((f) => ({ ...f, currency: v ?? mainCurrency }))}>
+            <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {wallets.map((w) => (<SelectItem key={w.currency} value={w.currency}>{w.currency}</SelectItem>))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Input placeholder="Monthly contribution" type="number" value={form.monthly} onChange={(e) => setForm((f) => ({ ...f, monthly: e.target.value }))} />
+        <label className="flex items-center gap-2 text-[13px] text-foreground">
+          <input type="checkbox" checked={form.isEmergency} onChange={(e) => setForm((f) => ({ ...f, isEmergency: e.target.checked }))} />
+          Emergency fund
+        </label>
+      </AppDialog>
 
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete saving goal?</DialogTitle>
-          </DialogHeader>
-          <p className="text-[13px] text-muted-foreground py-4 px-6">
-            This action cannot be undone.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
-            <Button onClick={handleDelete} className="!bg-destructive !text-destructive-foreground !border-destructive">
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AppDialog title="Edit saving goal" open={editOpen} onOpenChange={setEditOpen}
+        footer={<Button onClick={handleEdit}>Save</Button>}
+      >
+        <Input placeholder="Goal name" value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} />
+        <div className="flex gap-2">
+          <Input placeholder="Target amount" type="number" value={editForm.target}
+            onChange={(e) => setEditForm((f) => ({ ...f, target: e.target.value }))} className="flex-1" />
+          <Select value={editForm.currency} onValueChange={(v) => setEditForm((f) => ({ ...f, currency: v ?? mainCurrency }))}>
+            <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {wallets.map((w) => (<SelectItem key={w.currency} value={w.currency}>{w.currency}</SelectItem>))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Input placeholder="Saved amount" type="number" value={editForm.saved} onChange={(e) => setEditForm((f) => ({ ...f, saved: e.target.value }))} />
+        <Input placeholder="Monthly contribution" type="number" value={editForm.monthly} onChange={(e) => setEditForm((f) => ({ ...f, monthly: e.target.value }))} />
+        <label className="flex items-center gap-2 text-[13px] text-foreground">
+          <input type="checkbox" checked={editForm.isEmergency} onChange={(e) => setEditForm((f) => ({ ...f, isEmergency: e.target.checked }))} />
+          Emergency fund
+        </label>
+      </AppDialog>
 
-      <Dialog open={fundOpen} onOpenChange={setFundOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add funds</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-3 py-4">
-            <Input
-              placeholder="Amount"
-              type="number"
-              value={fundAmount}
-              onChange={(e) => setFundAmount(e.target.value)}
-            />
-          </div>
-          <DialogFooter>
-            <Button onClick={handleFund}>Add</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AppDialog title="Delete saving goal?" open={deleteOpen} onOpenChange={setDeleteOpen}
+        footer={<><Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button><Button onClick={handleDelete} className="bg-destructive! text-destructive-foreground! border-destructive!">Delete</Button></>}
+      >
+        <p className="text-[13px] text-muted-foreground">This action cannot be undone.</p>
+      </AppDialog>
+
+      <AppDialog title="Add funds" open={fundOpen} onOpenChange={setFundOpen}
+        footer={<Button onClick={handleFund}>Add</Button>}
+      >
+        <Input placeholder="Amount" type="number" value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} />
+      </AppDialog>
     </AppShell>
   );
 }

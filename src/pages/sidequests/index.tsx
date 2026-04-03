@@ -3,8 +3,9 @@ import { AppShell } from "@/components/layout/AppShell";
 import { ProjectCard, STATUS_COLORS, BILLING_COLORS } from "@/components/sidequests/ProjectCard";
 import { useProjectStore } from "@/stores/projectStore";
 import { useCurrencyStore } from "@/stores/currencyStore";
+import { MaskedAmount } from "@/components/shared/MaskedAmount";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { AppDialog, Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
@@ -159,66 +160,19 @@ export default function SideQuestsPage() {
 
   const getClientName = (id: string) => clients.find((c) => c.id === id)?.name || "—";
 
+  const editOrigProject = editId ? projects.find((p) => p.id === editId) : undefined;
+  const isRetainerLosing =
+    editOrigProject?.billingType === "retainer" &&
+    editOrigProject?.status === "active" &&
+    editForm.status !== "active";
+
   return (
     <AppShell
       title="Projects"
       actions={
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => setClientsOpen(true)}>
-            Clients
-          </Button>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger render={<Button size="sm" />}>
-              + New
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>New project</DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-3 py-4">
-                <Input placeholder="Project name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-                <Select value={form.clientId} onValueChange={(v) => setForm((f) => ({ ...f, clientId: v ?? "" }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select client">
-                      {form.clientId ? getClientName(form.clientId) : undefined}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clients.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={form.billingType} onValueChange={(v) => setForm((f) => ({ ...f, billingType: (v ?? "fixed") as "fixed" | "retainer" }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="fixed">
-                      <span className={`text-[10px] uppercase px-1.5 py-0.5 rounded mr-1.5 ${BILLING_COLORS.fixed}`}>fixed</span>
-                      Fixed price
-                    </SelectItem>
-                    <SelectItem value="retainer">
-                      <span className={`text-[10px] uppercase px-1.5 py-0.5 rounded mr-1.5 ${BILLING_COLORS.retainer}`}>retainer</span>
-                      Retainer
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="flex gap-2">
-                  <Input placeholder="Amount" type="number" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} className="flex-1" />
-                  <Select value={form.currency} onValueChange={(v) => setForm((f) => ({ ...f, currency: v ?? mainCurrency }))}>
-                    <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {wallets.map((w) => (
-                        <SelectItem key={w.currency} value={w.currency}>{w.currency}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={handleCreate}>Create</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button size="sm" variant="outline" onClick={() => setClientsOpen(true)}>Clients</Button>
+          <Button size="sm" onClick={() => setOpen(true)}>+ New</Button>
         </div>
       }
     >
@@ -277,93 +231,89 @@ export default function SideQuestsPage() {
         </p>
       )}
 
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit project</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-3 py-4">
-            <Input
-              placeholder="Project name"
-              value={editForm.name}
-              onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
-            />
-            <Select value={editForm.clientId} onValueChange={(v) => setEditForm((f) => ({ ...f, clientId: v ?? "" }))}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select client">
-                  {editForm.clientId ? getClientName(editForm.clientId) : undefined}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {clients.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={editForm.billingType} onValueChange={(v) => setEditForm((f) => ({ ...f, billingType: (v ?? "fixed") as "fixed" | "retainer" }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="fixed">
-                  <span className={`text-[10px] uppercase px-1.5 py-0.5 rounded mr-1.5 ${BILLING_COLORS.fixed}`}>fixed</span>
-                  Fixed price
-                </SelectItem>
-                <SelectItem value="retainer">
-                  <span className={`text-[10px] uppercase px-1.5 py-0.5 rounded mr-1.5 ${BILLING_COLORS.retainer}`}>retainer</span>
-                  Retainer
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Amount"
-                type="number"
-                value={editForm.amount}
-                onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))}
-                className="flex-1"
-              />
-              <Select value={editForm.currency} onValueChange={(v) => setEditForm((f) => ({ ...f, currency: v ?? mainCurrency }))}>
-                <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {wallets.map((w) => (
-                    <SelectItem key={w.currency} value={w.currency}>{w.currency}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Select value={editForm.status} onValueChange={(v) => setEditForm((f) => ({ ...f, status: (v ?? "active") as Project["status"] }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {(["proposal", "active", "delivered", "invoiced", "completed", "paused"] as const).map((s) => (
-                  <SelectItem key={s} value={s}>
-                    <span className={`text-[10px] uppercase px-1.5 py-0.5 rounded mr-1.5 ${STATUS_COLORS[s] || ""}`}>{s}</span>
-                    {s.charAt(0).toUpperCase() + s.slice(1)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleEdit}>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AppDialog title="New project" open={open} onOpenChange={setOpen}
+        footer={<Button onClick={handleCreate}>Create</Button>}
+      >
+        <Input placeholder="Project name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+        <Select value={form.clientId} onValueChange={(v) => setForm((f) => ({ ...f, clientId: v ?? "" }))}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select client">{form.clientId ? getClientName(form.clientId) : undefined}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {clients.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
+          </SelectContent>
+        </Select>
+        <Select value={form.billingType} onValueChange={(v) => setForm((f) => ({ ...f, billingType: (v ?? "fixed") as "fixed" | "retainer" }))}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="fixed"><span className={`text-[10px] uppercase px-1.5 py-0.5 rounded mr-1.5 ${BILLING_COLORS.fixed}`}>fixed</span>Fixed price</SelectItem>
+            <SelectItem value="retainer"><span className={`text-[10px] uppercase px-1.5 py-0.5 rounded mr-1.5 ${BILLING_COLORS.retainer}`}>retainer</span>Retainer</SelectItem>
+          </SelectContent>
+        </Select>
+        <div className="flex gap-2">
+          <Input placeholder="Amount" type="number" value={form.amount}
+            onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} className="flex-1" />
+          <Select value={form.currency} onValueChange={(v) => setForm((f) => ({ ...f, currency: v ?? mainCurrency }))}>
+            <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {wallets.map((w) => (<SelectItem key={w.currency} value={w.currency}>{w.currency}</SelectItem>))}
+            </SelectContent>
+          </Select>
+        </div>
+      </AppDialog>
 
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete project?</DialogTitle>
-          </DialogHeader>
-          <p className="text-[13px] text-muted-foreground py-4 px-6">
-            This will permanently delete the project and cannot be undone.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
-            <Button onClick={handleDelete} className="!bg-destructive !text-destructive-foreground !border-destructive">
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AppDialog title="Edit project" open={editOpen} onOpenChange={setEditOpen}
+        footer={<Button onClick={handleEdit}>Save</Button>}
+      >
+        {isRetainerLosing && editOrigProject && (
+          <div className="rounded-md px-3 py-2 bg-amber-500/10 border border-amber-500/20 text-[12px] text-amber-400/90">
+            <MaskedAmount value={editOrigProject.amount} currency={editOrigProject.currency} />/mo will stop counting from next month. Past months are preserved.
+          </div>
+        )}
+        <Input placeholder="Project name" value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} />
+        <Select value={editForm.clientId} onValueChange={(v) => setEditForm((f) => ({ ...f, clientId: v ?? "" }))}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select client">{editForm.clientId ? getClientName(editForm.clientId) : undefined}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {clients.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
+          </SelectContent>
+        </Select>
+        <Select value={editForm.billingType} onValueChange={(v) => setEditForm((f) => ({ ...f, billingType: (v ?? "fixed") as "fixed" | "retainer" }))}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="fixed"><span className={`text-[10px] uppercase px-1.5 py-0.5 rounded mr-1.5 ${BILLING_COLORS.fixed}`}>fixed</span>Fixed price</SelectItem>
+            <SelectItem value="retainer"><span className={`text-[10px] uppercase px-1.5 py-0.5 rounded mr-1.5 ${BILLING_COLORS.retainer}`}>retainer</span>Retainer</SelectItem>
+          </SelectContent>
+        </Select>
+        <div className="flex gap-2">
+          <Input placeholder="Amount" type="number" value={editForm.amount}
+            onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))} className="flex-1" />
+          <Select value={editForm.currency} onValueChange={(v) => setEditForm((f) => ({ ...f, currency: v ?? mainCurrency }))}>
+            <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {wallets.map((w) => (<SelectItem key={w.currency} value={w.currency}>{w.currency}</SelectItem>))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Select value={editForm.status} onValueChange={(v) => setEditForm((f) => ({ ...f, status: (v ?? "active") as Project["status"] }))}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {(["proposal", "active", "delivered", "invoiced", "completed", "paused"] as const).map((s) => (
+              <SelectItem key={s} value={s}>
+                <span className={`text-[10px] uppercase px-1.5 py-0.5 rounded mr-1.5 ${STATUS_COLORS[s] || ""}`}>{s}</span>
+                {s.charAt(0).toUpperCase() + s.slice(1)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </AppDialog>
+
+      <AppDialog title="Delete project?" open={deleteOpen} onOpenChange={setDeleteOpen}
+        footer={<><Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button><Button onClick={handleDelete} className="bg-destructive! text-destructive-foreground! border-destructive!">Delete</Button></>}
+      >
+        <p className="text-[13px] text-muted-foreground">This will permanently delete the project and cannot be undone.</p>
+      </AppDialog>
 
       <Dialog open={clientsOpen} onOpenChange={setClientsOpen}>
         <DialogContent showCloseButton={false}>

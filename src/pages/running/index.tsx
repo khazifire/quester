@@ -4,6 +4,7 @@ import { RunningNav } from "@/components/layout/RunningNav";
 import { MaskedAmount } from "@/components/shared/MaskedAmount";
 import { Button } from "@/components/ui/button";
 import {
+  AppDialog,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -370,107 +371,77 @@ export default function RunLogPage() {
       )}
 
       {/* Add Run Dialog */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Log a run</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-3 py-4">
-            <Input
-              placeholder="Name (e.g. Morning 5K)"
-              value={addForm.name}
-              onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
-            />
-            <Input
-              type="date"
-              value={addForm.date}
-              onChange={(e) => setAddForm((f) => ({ ...f, date: e.target.value }))}
-            />
-            <div className="flex gap-2">
-              <Input
-                placeholder="Distance (km)"
-                type="number"
-                step="0.01"
-                value={addForm.distanceKm}
-                onChange={(e) => setAddForm((f) => ({ ...f, distanceKm: e.target.value }))}
-                className="flex-1"
-              />
-              <Input
-                placeholder="Time (MM:SS)"
-                value={addForm.duration}
-                onChange={(e) => setAddForm((f) => ({ ...f, duration: e.target.value }))}
-                className="flex-1"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleAdd}>Log run</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AppDialog title="Log a run" open={addOpen} onOpenChange={setAddOpen}
+        footer={<Button onClick={handleAdd}>Log run</Button>}
+      >
+        <Input
+          placeholder="Name (e.g. Morning 5K)"
+          value={addForm.name}
+          onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
+        />
+        <Input
+          type="date"
+          value={addForm.date}
+          onChange={(e) => setAddForm((f) => ({ ...f, date: e.target.value }))}
+        />
+        <div className="flex gap-2">
+          <Input
+            placeholder="Distance (km)"
+            type="number"
+            step="0.01"
+            value={addForm.distanceKm}
+            onChange={(e) => setAddForm((f) => ({ ...f, distanceKm: e.target.value }))}
+            className="flex-1"
+          />
+          <Input
+            placeholder="Time (MM:SS)"
+            value={addForm.duration}
+            onChange={(e) => setAddForm((f) => ({ ...f, duration: e.target.value }))}
+            className="flex-1"
+          />
+        </div>
+      </AppDialog>
 
       {/* Edit Run Dialog */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit run</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-3 py-4">
-            <Input
-              placeholder="Name"
-              value={editForm.name}
-              onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
-            />
-            <Input
-              type="date"
-              value={editForm.date}
-              onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))}
-            />
-            <div className="flex gap-2">
-              <Input
-                placeholder="Distance (km)"
-                type="number"
-                step="0.01"
-                value={editForm.distanceKm}
-                onChange={(e) => setEditForm((f) => ({ ...f, distanceKm: e.target.value }))}
-                className="flex-1"
-              />
-              <Input
-                placeholder="Time (MM:SS)"
-                value={editForm.duration}
-                onChange={(e) => setEditForm((f) => ({ ...f, duration: e.target.value }))}
-                className="flex-1"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleEdit}>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AppDialog title="Edit run" open={editOpen} onOpenChange={setEditOpen}
+        footer={<Button onClick={handleEdit}>Save</Button>}
+      >
+        <Input
+          placeholder="Name"
+          value={editForm.name}
+          onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+        />
+        <Input
+          type="date"
+          value={editForm.date}
+          onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))}
+        />
+        <div className="flex gap-2">
+          <Input
+            placeholder="Distance (km)"
+            type="number"
+            step="0.01"
+            value={editForm.distanceKm}
+            onChange={(e) => setEditForm((f) => ({ ...f, distanceKm: e.target.value }))}
+            className="flex-1"
+          />
+          <Input
+            placeholder="Time (MM:SS)"
+            value={editForm.duration}
+            onChange={(e) => setEditForm((f) => ({ ...f, duration: e.target.value }))}
+            className="flex-1"
+          />
+        </div>
+      </AppDialog>
 
       {/* Delete Dialog */}
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete run?</DialogTitle>
-          </DialogHeader>
-          <p className="text-[13px] text-muted-foreground py-4 px-6">
-            This will also delete any associated costs. This action cannot be undone.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleDelete}
-              className="bg-destructive! text-destructive-foreground! border-destructive!"
-            >
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AppDialog title="Delete run?" open={deleteOpen} onOpenChange={setDeleteOpen}
+        footer={<><Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button><Button onClick={handleDelete} className="bg-destructive! text-destructive-foreground! border-destructive!">Delete</Button></>}
+      >
+        <p className="text-[13px] text-muted-foreground">
+          This will also delete any associated costs. This action cannot be undone.
+        </p>
+      </AppDialog>
 
       {/* Detail / Costs Dialog */}
       <Dialog open={!!detailRun} onOpenChange={(open) => !open && setDetailRun(null)}>

@@ -10,12 +10,15 @@ import { QuickAdd } from "@/components/finances/QuickAdd";
 import { useFinanceStore } from "@/stores/financeStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useCurrencyStore } from "@/stores/currencyStore";
+import { useMaterializeIncome } from "@/hooks/useMaterializeIncome";
 import { getMonthKey } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 export default function FinancesReportPage() {
+  useMaterializeIncome();
+
   const monthKey = getMonthKey();
-  const allInvoices = useFinanceStore((s) => s.invoices);
+  const getMonthlyIncome = useFinanceStore((s) => s.getMonthlyIncome);
   const allExpenses = useFinanceStore((s) => s.expenses);
   const subscriptions = useFinanceStore((s) => s.subscriptions);
   const savingGoals = useFinanceStore((s) => s.savingGoals);
@@ -23,9 +26,8 @@ export default function FinancesReportPage() {
 
   const convert = useCurrencyStore((s) => s.convert);
 
-  const income = allInvoices
-    .filter((inv) => inv.status === "paid" && inv.paidDate?.startsWith(monthKey))
-    .reduce((sum, inv) => sum + convert(inv.amount, inv.currency), 0);
+  // Include salary, retainer snapshots, invoices — everything
+  const income = Math.round(getMonthlyIncome(monthKey));
   const monthExpenses = allExpenses.filter((e) => e.date.startsWith(monthKey));
   const totalExpenses = monthExpenses.reduce((sum, e) => sum + convert(e.amount, e.currency), 0);
   const net = income - totalExpenses;
@@ -68,7 +70,7 @@ export default function FinancesReportPage() {
         <div>
           <div className="text-[10px] text-muted-foreground uppercase tracking-[0.06em] mb-1">Income</div>
           <div className="text-[18px] font-medium tabular-nums"><MaskedAmount value={income} /></div>
-          <div className="text-[9px] text-muted-foreground mt-0.5">MRR: <MaskedAmount value={mrr} /></div>
+          <div className="text-[9px] text-muted-foreground mt-0.5">Retainers: <MaskedAmount value={Math.round(mrr)} /></div>
         </div>
         <div>
           <div className="text-[10px] text-muted-foreground uppercase tracking-[0.06em] mb-1">Expenses</div>

@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { href: "/sidequests", label: "Projects" },
   { href: "/running", label: "Running" },
   { href: "/finances", label: "Finances" },
+  { href: "/habits", label: "Habits" },
   { href: "/settings", label: "Settings" },
 ];
 

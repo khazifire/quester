@@ -4,11 +4,11 @@ import { RunningNav } from "@/components/layout/RunningNav";
 import { MaskedAmount } from "@/components/shared/MaskedAmount";
 import { Button } from "@/components/ui/button";
 import {
+  AppDialog,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
@@ -274,191 +274,161 @@ export default function EventsPage() {
       )}
 
       {/* Add Event Dialog */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add running event</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-3 py-4">
-            <Input
-              placeholder="Event name"
-              value={addForm.name}
-              onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
-            />
-            <Input
-              placeholder="Location"
-              value={addForm.location}
-              onChange={(e) => setAddForm((f) => ({ ...f, location: e.target.value }))}
-            />
-            <div className="flex gap-2">
-              <Input
-                type="date"
-                value={addForm.date}
-                onChange={(e) => setAddForm((f) => ({ ...f, date: e.target.value }))}
-                className="flex-1"
-              />
-              <Select
-                value={addForm.distanceKm}
-                onValueChange={(v) => setAddForm((f) => ({ ...f, distanceKm: v ?? "" }))}
-              >
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Distance" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5">5 km</SelectItem>
-                  <SelectItem value="10">10 km</SelectItem>
-                  <SelectItem value="21.1">21.1 km (Half)</SelectItem>
-                  <SelectItem value="42.195">42.195 km (Full)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Select
-              value={addForm.type}
-              onValueChange={(v) => setAddForm((f) => ({ ...f, type: v as RunningEvent["type"] }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent>
-                {RUNNING_EVENT_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {RUNNING_EVENT_TYPE_LABELS[t]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Entry fee"
-                type="number"
-                value={addForm.entryFee}
-                onChange={(e) => setAddForm((f) => ({ ...f, entryFee: e.target.value }))}
-                className="flex-1"
-              />
-              <Select
-                value={addForm.currency}
-                onValueChange={(v) => setAddForm((f) => ({ ...f, currency: v ?? mainCurrency }))}
-              >
-                <SelectTrigger className="w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {wallets.map((w) => (
-                    <SelectItem key={w.currency} value={w.currency}>
-                      {w.currency}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleAdd}>Add event</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AppDialog title="Add running event" open={addOpen} onOpenChange={setAddOpen}
+        footer={<Button onClick={handleAdd}>Add event</Button>}
+      >
+        <Input
+          placeholder="Event name"
+          value={addForm.name}
+          onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
+        />
+        <Input
+          placeholder="Location"
+          value={addForm.location}
+          onChange={(e) => setAddForm((f) => ({ ...f, location: e.target.value }))}
+        />
+        <div className="flex gap-2">
+          <Input
+            type="date"
+            value={addForm.date}
+            onChange={(e) => setAddForm((f) => ({ ...f, date: e.target.value }))}
+            className="flex-1"
+          />
+          <Select
+            value={addForm.distanceKm}
+            onValueChange={(v) => setAddForm((f) => ({ ...f, distanceKm: v ?? "" }))}
+          >
+            <SelectTrigger className="flex-1">
+              <SelectValue placeholder="Distance" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="5">5 km</SelectItem>
+              <SelectItem value="10">10 km</SelectItem>
+              <SelectItem value="21.1">21.1 km (Half)</SelectItem>
+              <SelectItem value="42.195">42.195 km (Full)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Select
+          value={addForm.type}
+          onValueChange={(v) => setAddForm((f) => ({ ...f, type: v as RunningEvent["type"] }))}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Type" />
+          </SelectTrigger>
+          <SelectContent>
+            {RUNNING_EVENT_TYPES.map((t) => (
+              <SelectItem key={t} value={t}>
+                {RUNNING_EVENT_TYPE_LABELS[t]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex gap-2">
+          <Input
+            placeholder="Entry fee"
+            type="number"
+            value={addForm.entryFee}
+            onChange={(e) => setAddForm((f) => ({ ...f, entryFee: e.target.value }))}
+            className="flex-1"
+          />
+          <Select
+            value={addForm.currency}
+            onValueChange={(v) => setAddForm((f) => ({ ...f, currency: v ?? mainCurrency }))}
+          >
+            <SelectTrigger className="w-24">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {wallets.map((w) => (
+                <SelectItem key={w.currency} value={w.currency}>
+                  {w.currency}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </AppDialog>
 
       {/* Edit Event Dialog */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit event</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-3 py-4">
-            <Input
-              placeholder="Event name"
-              value={editForm.name}
-              onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
-            />
-            <Input
-              placeholder="Location"
-              value={editForm.location}
-              onChange={(e) => setEditForm((f) => ({ ...f, location: e.target.value }))}
-            />
-            <div className="flex gap-2">
-              <Input
-                type="date"
-                value={editForm.date}
-                onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))}
-                className="flex-1"
-              />
-              <Select
-                value={editForm.distanceKm}
-                onValueChange={(v) => setEditForm((f) => ({ ...f, distanceKm: v ?? "" }))}
-              >
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Distance" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5">5 km</SelectItem>
-                  <SelectItem value="10">10 km</SelectItem>
-                  <SelectItem value="21.1">21.1 km (Half)</SelectItem>
-                  <SelectItem value="42.195">42.195 km (Full)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Select
-              value={editForm.type}
-              onValueChange={(v) => setEditForm((f) => ({ ...f, type: v as RunningEvent["type"] }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent>
-                {RUNNING_EVENT_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {RUNNING_EVENT_TYPE_LABELS[t]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input
-              placeholder="Finish time (H:MM:SS or MM:SS)"
-              value={editForm.finishTime}
-              onChange={(e) => setEditForm((f) => ({ ...f, finishTime: e.target.value }))}
-            />
-            <Select
-              value={editForm.status}
-              onValueChange={(v) => setEditForm((f) => ({ ...f, status: v as RunningEvent["status"] }))}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="upcoming">Upcoming</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleEdit}>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AppDialog title="Edit event" open={editOpen} onOpenChange={setEditOpen}
+        footer={<Button onClick={handleEdit}>Save</Button>}
+      >
+        <Input
+          placeholder="Event name"
+          value={editForm.name}
+          onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+        />
+        <Input
+          placeholder="Location"
+          value={editForm.location}
+          onChange={(e) => setEditForm((f) => ({ ...f, location: e.target.value }))}
+        />
+        <div className="flex gap-2">
+          <Input
+            type="date"
+            value={editForm.date}
+            onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))}
+            className="flex-1"
+          />
+          <Select
+            value={editForm.distanceKm}
+            onValueChange={(v) => setEditForm((f) => ({ ...f, distanceKm: v ?? "" }))}
+          >
+            <SelectTrigger className="flex-1">
+              <SelectValue placeholder="Distance" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="5">5 km</SelectItem>
+              <SelectItem value="10">10 km</SelectItem>
+              <SelectItem value="21.1">21.1 km (Half)</SelectItem>
+              <SelectItem value="42.195">42.195 km (Full)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Select
+          value={editForm.type}
+          onValueChange={(v) => setEditForm((f) => ({ ...f, type: v as RunningEvent["type"] }))}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Type" />
+          </SelectTrigger>
+          <SelectContent>
+            {RUNNING_EVENT_TYPES.map((t) => (
+              <SelectItem key={t} value={t}>
+                {RUNNING_EVENT_TYPE_LABELS[t]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          placeholder="Finish time (H:MM:SS or MM:SS)"
+          value={editForm.finishTime}
+          onChange={(e) => setEditForm((f) => ({ ...f, finishTime: e.target.value }))}
+        />
+        <Select
+          value={editForm.status}
+          onValueChange={(v) => setEditForm((f) => ({ ...f, status: v as RunningEvent["status"] }))}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="upcoming">Upcoming</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+            <SelectItem value="cancelled">Cancelled</SelectItem>
+          </SelectContent>
+        </Select>
+      </AppDialog>
 
       {/* Delete Dialog */}
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete event?</DialogTitle>
-          </DialogHeader>
-          <p className="text-[13px] text-muted-foreground py-4 px-6">
-            This will also delete associated costs and expenses. This action cannot be undone.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleDelete}
-              className="bg-destructive! text-destructive-foreground! border-destructive!"
-            >
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AppDialog title="Delete event?" open={deleteOpen} onOpenChange={setDeleteOpen}
+        footer={<><Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button><Button onClick={handleDelete} className="bg-destructive! text-destructive-foreground! border-destructive!">Delete</Button></>}
+      >
+        <p className="text-[13px] text-muted-foreground">
+          This will also delete associated costs and expenses. This action cannot be undone.
+        </p>
+      </AppDialog>
 
       {/* Detail / Costs Dialog */}
       <Dialog open={!!detailEvent} onOpenChange={(open) => !open && setDetailEvent(null)}>

@@ -5,11 +5,13 @@ import { IssueTable } from "@/components/sidequests/IssueTable";
 import { IssueKanban } from "@/components/sidequests/IssueKanban";
 import { MaskedAmount } from "@/components/shared/MaskedAmount";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { AppDialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useProjectStore } from "@/stores/projectStore";
+import { useFinanceStore } from "@/stores/financeStore";
+import { useCurrencyStore } from "@/stores/currencyStore";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -23,6 +25,8 @@ export default function ProjectDetailPage() {
   const allClients = useProjectStore((s) => s.clients);
   const allIssues = useProjectStore((s) => s.issues);
   const addIssue = useProjectStore((s) => s.addIssue);
+  const invoices = useFinanceStore((s) => s.invoices);
+  const convert = useCurrencyStore((s) => s.convert);
 
   const project = useMemo(
     () => allProjects.find((p) => p.id === id),
@@ -58,6 +62,17 @@ export default function ProjectDetailPage() {
   const openIssues = issues.filter((i) => i.status !== "done").length;
   const doneIssues = issues.filter((i) => i.status === "done").length;
 
+  // Total invoiced (paid invoices linked to this project)
+  const totalInvoiced = useMemo(() => {
+    if (!project) return 0;
+    return invoices
+      .filter((inv) => {
+        const pids = inv.projectIds?.length ? inv.projectIds : inv.projectId ? [inv.projectId] : [];
+        return inv.status === "paid" && pids.includes(project.id);
+      })
+      .reduce((sum, inv) => sum + convert(inv.amount, inv.currency), 0);
+  }, [invoices, project, convert]);
+
   function handleAddIssue() {
     if (!issueForm.title.trim()) return;
     addIssue({
@@ -91,10 +106,18 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-6 pb-4 mb-4 border-b border-border">
+      <div className="grid grid-cols-5 gap-6 pb-4 mb-4 border-b border-border">
         <div>
-          <div className="text-[10px] text-muted-foreground uppercase tracking-[0.06em] mb-1">Value</div>
-          <div className="text-[18px] font-medium tabular-nums"><MaskedAmount value={project.amount} /></div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-[0.06em] mb-1">
+            {project.billingType === "retainer" ? "Monthly" : "Value"}
+          </div>
+          <div className="text-[18px] font-medium tabular-nums"><MaskedAmount value={project.amount} currency={project.currency} /></div>
+          <div className="text-[9px] text-muted-foreground mt-0.5 capitalize">{project.billingType}</div>
+        </div>
+        <div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-[0.06em] mb-1">Invoiced</div>
+          <div className="text-[18px] font-medium tabular-nums"><MaskedAmount value={Math.round(totalInvoiced)} /></div>
+          <div className="text-[9px] text-muted-foreground mt-0.5">paid invoices</div>
         </div>
         <div>
           <div className="text-[10px] text-muted-foreground uppercase tracking-[0.06em] mb-1">Issues</div>
@@ -126,39 +149,7 @@ export default function ProjectDetailPage() {
             </button>
           ))}
         </div>
-        <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-          <DialogTrigger render={<Button size="sm" />}>
-            + Add issue
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>New issue</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-3 py-4">
-              <Input placeholder="Title" value={issueForm.title} onChange={(e) => setIssueForm((f) => ({ ...f, title: e.target.value }))} />
-              <Input placeholder="Description (optional)" value={issueForm.description} onChange={(e) => setIssueForm((f) => ({ ...f, description: e.target.value }))} />
-              <Select value={issueForm.priority} onValueChange={(v) => setIssueForm((f) => ({ ...f, priority: (v ?? "medium") as "low" | "medium" | "high" }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                </SelectContent>
-              </Select>
-              <DatePicker value={issueForm.deadline} onChange={(v) => setIssueForm((f) => ({ ...f, deadline: v }))} placeholder="Deadline (optional)" />
-              <Select value={issueForm.reportedBy} onValueChange={(v) => setIssueForm((f) => ({ ...f, reportedBy: (v ?? "self") as "client" | "self" }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="self">Self</SelectItem>
-                  <SelectItem value="client">Client</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <DialogFooter>
-              <Button onClick={handleAddIssue}>Create</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button size="sm" onClick={() => setOpenDialog(true)}>+ Add issue</Button>
       </div>
 
       {viewMode === "table" ? (
@@ -166,6 +157,29 @@ export default function ProjectDetailPage() {
       ) : (
         <IssueKanban issues={issues} />
       )}
+
+      <AppDialog title="New issue" open={openDialog} onOpenChange={setOpenDialog}
+        footer={<Button onClick={handleAddIssue}>Create</Button>}
+      >
+        <Input placeholder="Title" value={issueForm.title} onChange={(e) => setIssueForm((f) => ({ ...f, title: e.target.value }))} />
+        <Input placeholder="Description (optional)" value={issueForm.description} onChange={(e) => setIssueForm((f) => ({ ...f, description: e.target.value }))} />
+        <Select value={issueForm.priority} onValueChange={(v) => setIssueForm((f) => ({ ...f, priority: (v ?? "medium") as "low" | "medium" | "high" }))}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="low">Low</SelectItem>
+            <SelectItem value="medium">Medium</SelectItem>
+            <SelectItem value="high">High</SelectItem>
+          </SelectContent>
+        </Select>
+        <DatePicker value={issueForm.deadline} onChange={(v) => setIssueForm((f) => ({ ...f, deadline: v }))} placeholder="Deadline (optional)" />
+        <Select value={issueForm.reportedBy} onValueChange={(v) => setIssueForm((f) => ({ ...f, reportedBy: (v ?? "self") as "client" | "self" }))}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="self">Self</SelectItem>
+            <SelectItem value="client">Client</SelectItem>
+          </SelectContent>
+        </Select>
+      </AppDialog>
     </AppShell>
   );
 }

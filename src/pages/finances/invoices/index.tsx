@@ -6,11 +6,7 @@ import { MaskedAmount } from "@/components/shared/MaskedAmount";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  AppDialog,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
@@ -332,6 +328,45 @@ export default function InvoicesPage() {
     >
       <FinanceNav />
 
+      {/* Active retainer projects — recurring income */}
+      {retainerProjects.length > 0 && (
+        <div className="mb-8">
+          <span className="text-[12px] text-muted-foreground uppercase tracking-[0.06em] mb-3 block">
+            Recurring retainers
+          </span>
+          <div className="grid grid-cols-[1fr_100px_90px_80px] gap-3 py-2 text-[11px] uppercase tracking-[0.06em] text-muted-foreground border-b border-border">
+            <span>Project</span>
+            <span>Client</span>
+            <span className="text-right">Monthly</span>
+            <span>Billing</span>
+          </div>
+          {retainerProjects.map((p) => {
+            const client = clients.find((c) => c.id === p.clientId);
+            return (
+              <div key={p.id} className="grid grid-cols-[1fr_100px_90px_80px] gap-3 py-2.5 text-[13px] border-b border-border last:border-0">
+                <span className="truncate">{p.name}</span>
+                <span className="text-[12px] text-muted-foreground truncate">{client?.name ?? "—"}</span>
+                <span className="text-right font-mono tabular-nums text-[12px]">
+                  <MaskedAmount value={p.amount} currency={p.currency} />
+                </span>
+                <span className="text-[11px] text-muted-foreground">Retainer</span>
+              </div>
+            );
+          })}
+          <div className="pt-3 flex items-center justify-between">
+            <span className="text-[12px] text-muted-foreground">
+              {retainerProjects.length} retainer{retainerProjects.length !== 1 ? "s" : ""} · auto-draft created end of month
+            </span>
+            <span className="text-[13px] font-mono tabular-nums">
+              <MaskedAmount
+                value={Math.round(retainerProjects.reduce((sum, p) => sum + convert(p.amount, p.currency), 0))}
+              />
+              <span className="text-[11px] text-muted-foreground ml-1">/ mo</span>
+            </span>
+          </div>
+        </div>
+      )}
+
       {drafts.length > 0 && (
         <div className="mb-6">
           <div className="text-[11px] text-muted-foreground uppercase tracking-[0.06em] mb-2">
@@ -366,272 +401,234 @@ export default function InvoicesPage() {
         </p>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen} >
-        <DialogContent  className={"lg:max-w-2xl"}>
-          <DialogHeader>
-            <DialogTitle>Create invoice</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-3 py-4 ">
-            <div className="flex gap-3 items-center">
-              <div className="flex-1">
-                <div className="text-[11px] text-muted-foreground uppercase tracking-[0.06em] mb-1.5">
-                  Issue date
-                </div>
-                <DatePicker value={issuedDate} onChange={setIssuedDate} />
-              </div>
-              <div className="flex-1">
-                <div className="text-[11px] text-muted-foreground uppercase tracking-[0.06em] mb-1.5">
-                  Due date
-                </div>
-                <div className="text-[13px] font-mono tabular-nums h-9 flex items-center text-muted-foreground">
-                  {formatDate(dueDate)} <span className="text-[10px] ml-1.5">(+7d)</span>
-                </div>
-              </div>
+      <AppDialog title="Create invoice" open={open} onOpenChange={setOpen} className="lg:max-w-2xl"
+        footer={<Button onClick={handleCreate} disabled={selectedProjectIds.length === 0}>Create</Button>}
+      >
+        <div className="flex gap-3 items-center">
+          <div className="flex-1">
+            <div className="text-[11px] text-muted-foreground uppercase tracking-[0.06em] mb-1.5">
+              Issue date
             </div>
-
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-[11px] text-muted-foreground uppercase tracking-[0.06em]">Invoice currency</span>
-              <Select value={invoiceCurrency} onValueChange={(v) => setInvoiceCurrency(v ?? mainCurrency)}>
-                <SelectTrigger className="w-24 h-7"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {wallets.map((w) => (
-                    <SelectItem key={w.currency} value={w.currency}>{w.currency}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <DatePicker value={issuedDate} onChange={setIssuedDate} />
+          </div>
+          <div className="flex-1">
+            <div className="text-[11px] text-muted-foreground uppercase tracking-[0.06em] mb-1.5">
+              Due date
             </div>
+            <div className="text-[13px] font-mono tabular-nums h-9 flex items-center text-muted-foreground">
+              {formatDate(dueDate)} <span className="text-[10px] ml-1.5">(+7d)</span>
+            </div>
+          </div>
+        </div>
 
-            <table className="w-full border-collapse mt-1">
-              <thead>
-                <tr className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground border-b border-border">
-                  <th className="py-2 text-left font-normal">Project</th>
-                  <th className="py-2 text-right font-normal">Amount</th>
-                  {invoiceCurrency !== mainCurrency && (
-                    <th className="py-2 text-right font-normal pl-3">{invoiceCurrency}</th>
-                  )}
-                  <th className="py-2 text-right font-normal pl-3">{mainCurrency}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeProjects.length === 0 && (
-                  <tr><td colSpan={4} className="text-[12px] text-muted-foreground py-3">No active projects</td></tr>
-                )}
-                {activeProjects.map((p) => {
-                  const client = clients.find((c) => c.id === p.clientId);
-                  const checked = selectedProjectIds.includes(p.id);
-                  const pCur = p.currency || mainCurrency;
-                  const inInvoiceCur = convertTo(p.amount, p.currency, invoiceCurrency);
-                  const inMainCur = convert(p.amount, p.currency);
-                  return (
-                    <tr key={p.id} className="text-[13px] border-b border-border last:border-0">
-                      <td className="py-2">
-                        <label className="flex items-center gap-2.5 cursor-pointer whitespace-nowrap">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleProject(p.id)}
-                            className="accent-foreground"
-                          />
-                          <span className="text-foreground">{p.name}</span>
-                          <span className="text-[11px] text-muted-foreground">({client?.name})</span>
-                        </label>
-                      </td>
-                      <td className="py-2 text-right font-mono tabular-nums text-[12px] text-muted-foreground whitespace-nowrap">
-                        <MaskedAmount value={p.amount} currency={p.currency} showOriginal />
-                      </td>
-                      {invoiceCurrency !== mainCurrency && (
-                        <td className="py-2 text-right font-mono tabular-nums text-[12px] text-muted-foreground whitespace-nowrap pl-3">
-                          {pCur !== invoiceCurrency ? <MaskedAmount value={Math.round(inInvoiceCur)} currency={invoiceCurrency} showOriginal /> : ""}
-                        </td>
-                      )}
-                      <td className="py-2 text-right font-mono tabular-nums text-[12px] text-muted-foreground whitespace-nowrap pl-3">
-                        {pCur !== mainCurrency ? <MaskedAmount value={Math.round(inMainCur)} currency={mainCurrency} showOriginal /> : ""}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-[11px] text-muted-foreground uppercase tracking-[0.06em]">Invoice currency</span>
+          <Select value={invoiceCurrency} onValueChange={(v) => setInvoiceCurrency(v ?? mainCurrency)}>
+            <SelectTrigger className="w-24 h-7"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {wallets.map((w) => (
+                <SelectItem key={w.currency} value={w.currency}>{w.currency}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-            <div className="border-t border-border pt-3 mt-1">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[12px] text-muted-foreground">Subtotal</span>
-                <span className="text-[14px] font-mono tabular-nums">
-                  <MaskedAmount value={Math.round(selectedTotalInInvoiceCur)} currency={invoiceCurrency} showOriginal />
-                  {invoiceCurrency !== mainCurrency && (
-                    <span className="text-[11px] text-muted-foreground ml-2">
-                      (<MaskedAmount value={Math.round(selectedTotalInMain)} currency={mainCurrency} showOriginal />)
-                    </span>
-                  )}
-                </span>
-              </div>
-              <div className="flex gap-2 items-center">
-                <span className="text-[12px] text-muted-foreground whitespace-nowrap">Est. fees ({invoiceCurrency})</span>
-                <Input
-                  placeholder="0"
-                  type="number"
-                  value={estimatedFees}
-                  onChange={(e) => setEstimatedFees(e.target.value)}
-                  className="flex-1"
-                />
-              </div>
-              {fees > 0 && (
-                <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-                  <span className="text-[12px] text-foreground">Total</span>
-                  <span className="text-[16px] font-mono tabular-nums font-medium">
-                    <MaskedAmount value={Math.round(selectedTotalInInvoiceCur - fees)} currency={invoiceCurrency} showOriginal />
-                  </span>
-                </div>
+        <table className="w-full border-collapse mt-1">
+          <thead>
+            <tr className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground border-b border-border">
+              <th className="py-2 text-left font-normal">Project</th>
+              <th className="py-2 text-right font-normal">Amount</th>
+              {invoiceCurrency !== mainCurrency && (
+                <th className="py-2 text-right font-normal pl-3">{invoiceCurrency}</th>
               )}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleCreate} disabled={selectedProjectIds.length === 0}>
-              Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent >
-          <DialogHeader>
-            <DialogTitle>Edit invoice</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-3 py-4">
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <span className="text-[11px] text-muted-foreground uppercase tracking-[0.06em]">Invoice currency</span>
-                <Select value={editCurrency} onValueChange={(v) => setEditCurrency(v ?? mainCurrency)}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {wallets.map((w) => (
-                      <SelectItem key={w.currency} value={w.currency}>{w.currency}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex-1">
-                <span className="text-[11px] text-muted-foreground uppercase tracking-[0.06em]">Status</span>
-                <Select value={editStatus} onValueChange={(v) => setEditStatus(v ?? "sent")}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="sent">Sent</SelectItem>
-                    <SelectItem value="paid">Paid</SelectItem>
-                    <SelectItem value="overdue">Overdue</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground border-b border-border">
-                  <th className="py-2 text-left font-normal">Project</th>
-                  <th className="py-2 text-right font-normal">Amount</th>
-                  {editCurrency !== mainCurrency && (
-                    <th className="py-2 text-right font-normal pl-3">{editCurrency}</th>
+              <th className="py-2 text-right font-normal pl-3">{mainCurrency}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {activeProjects.length === 0 && (
+              <tr><td colSpan={4} className="text-[12px] text-muted-foreground py-3">No active projects</td></tr>
+            )}
+            {activeProjects.map((p) => {
+              const client = clients.find((c) => c.id === p.clientId);
+              const checked = selectedProjectIds.includes(p.id);
+              const pCur = p.currency || mainCurrency;
+              const inInvoiceCur = convertTo(p.amount, p.currency, invoiceCurrency);
+              const inMainCur = convert(p.amount, p.currency);
+              return (
+                <tr key={p.id} className="text-[13px] border-b border-border last:border-0">
+                  <td className="py-2">
+                    <label className="flex items-center gap-2.5 cursor-pointer whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleProject(p.id)}
+                        className="accent-foreground"
+                      />
+                      <span className="text-foreground">{p.name}</span>
+                      <span className="text-[11px] text-muted-foreground">({client?.name})</span>
+                    </label>
+                  </td>
+                  <td className="py-2 text-right font-mono tabular-nums text-[12px] text-muted-foreground whitespace-nowrap">
+                    <MaskedAmount value={p.amount} currency={p.currency} showOriginal />
+                  </td>
+                  {invoiceCurrency !== mainCurrency && (
+                    <td className="py-2 text-right font-mono tabular-nums text-[12px] text-muted-foreground whitespace-nowrap pl-3">
+                      {pCur !== invoiceCurrency ? <MaskedAmount value={Math.round(inInvoiceCur)} currency={invoiceCurrency} showOriginal /> : ""}
+                    </td>
                   )}
-                  <th className="py-2 text-right font-normal pl-3">{mainCurrency}</th>
+                  <td className="py-2 text-right font-mono tabular-nums text-[12px] text-muted-foreground whitespace-nowrap pl-3">
+                    {pCur !== mainCurrency ? <MaskedAmount value={Math.round(inMainCur)} currency={mainCurrency} showOriginal /> : ""}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {activeProjects.map((p) => {
-                  const client = clients.find((c) => c.id === p.clientId);
-                  const checked = editProjectIds.includes(p.id);
-                  const pCur = p.currency || mainCurrency;
-                  const inEditCur = convertTo(p.amount, p.currency, editCurrency);
-                  const inMainCur = convert(p.amount, p.currency);
-                  return (
-                    <tr key={p.id} className="text-[13px] border-b border-border last:border-0">
-                      <td className="py-2">
-                        <label className="flex items-center gap-2.5 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleEditProject(p.id)}
-                            className="accent-foreground"
-                          />
-                          <span className="text-foreground">{p.name}</span>
-                          <span className="text-[11px] text-muted-foreground">({client?.name})</span>
-                        </label>
-                      </td>
-                      <td className="py-2 text-right font-mono tabular-nums text-[12px] text-muted-foreground whitespace-nowrap">
-                        <MaskedAmount value={p.amount} currency={p.currency} showOriginal />
-                      </td>
-                      {editCurrency !== mainCurrency && (
-                        <td className="py-2 text-right font-mono tabular-nums text-[12px] text-muted-foreground whitespace-nowrap pl-3">
-                          {pCur !== editCurrency ? <MaskedAmount value={Math.round(inEditCur)} currency={editCurrency} showOriginal /> : ""}
-                        </td>
-                      )}
-                      <td className="py-2 text-right font-mono tabular-nums text-[12px] text-muted-foreground whitespace-nowrap pl-3">
-                        {pCur !== mainCurrency ? <MaskedAmount value={Math.round(inMainCur)} currency={mainCurrency} showOriginal /> : ""}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+              );
+            })}
+          </tbody>
+        </table>
 
-            <div className="border-t border-border pt-3 mt-1">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[12px] text-muted-foreground">Subtotal</span>
-                <span className="text-[14px] font-mono tabular-nums">
-                  <MaskedAmount value={Math.round(editTotalInCur)} currency={editCurrency} showOriginal />
+        <div className="border-t border-border pt-3 mt-1">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[12px] text-muted-foreground">Subtotal</span>
+            <span className="text-[14px] font-mono tabular-nums">
+              <MaskedAmount value={Math.round(selectedTotalInInvoiceCur)} currency={invoiceCurrency} showOriginal />
+              {invoiceCurrency !== mainCurrency && (
+                <span className="text-[11px] text-muted-foreground ml-2">
+                  (<MaskedAmount value={Math.round(selectedTotalInMain)} currency={mainCurrency} showOriginal />)
                 </span>
-              </div>
-
-              <div>
-                <span className="text-[11px] text-muted-foreground uppercase tracking-[0.06em]">
-                  Estimated fees ({editCurrency})
-                </span>
-                <Input
-                  type="number"
-                  value={editFees}
-                  onChange={(e) => setEditFees(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-            </div>
+              )}
+            </span>
           </div>
-          <DialogFooter>
-            <Button onClick={handleEdit}>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <div className="flex gap-2 items-center">
+            <span className="text-[12px] text-muted-foreground whitespace-nowrap">Est. fees ({invoiceCurrency})</span>
+            <Input
+              placeholder="0"
+              type="number"
+              value={estimatedFees}
+              onChange={(e) => setEstimatedFees(e.target.value)}
+              className="flex-1"
+            />
+          </div>
+          {fees > 0 && (
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+              <span className="text-[12px] text-foreground">Total</span>
+              <span className="text-[16px] font-mono tabular-nums font-medium">
+                <MaskedAmount value={Math.round(selectedTotalInInvoiceCur - fees)} currency={invoiceCurrency} showOriginal />
+              </span>
+            </div>
+          )}
+        </div>
+      </AppDialog>
 
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete invoice?</DialogTitle>
-          </DialogHeader>
-          <p className="text-[13px] text-muted-foreground py-4 px-6">
-            This action cannot be undone.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
-            <Button onClick={handleDelete} className="!bg-destructive !text-destructive-foreground !border-destructive">
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AppDialog title="Edit invoice" open={editOpen} onOpenChange={setEditOpen}
+        footer={<Button onClick={handleEdit}>Save</Button>}
+      >
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <span className="text-[11px] text-muted-foreground uppercase tracking-[0.06em]">Invoice currency</span>
+            <Select value={editCurrency} onValueChange={(v) => setEditCurrency(v ?? mainCurrency)}>
+              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {wallets.map((w) => (
+                  <SelectItem key={w.currency} value={w.currency}>{w.currency}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex-1">
+            <span className="text-[11px] text-muted-foreground uppercase tracking-[0.06em]">Status</span>
+            <Select value={editStatus} onValueChange={(v) => setEditStatus(v ?? "sent")}>
+              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="sent">Sent</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
+                <SelectItem value="overdue">Overdue</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
-      <Dialog open={payOpen} onOpenChange={setPayOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Mark as paid?</DialogTitle>
-          </DialogHeader>
-          <p className="text-[13px] text-muted-foreground py-4 px-6">
-            This will mark the invoice as paid with today&apos;s date.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPayOpen(false)}>Cancel</Button>
-            <Button onClick={handlePay}>Confirm</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground border-b border-border">
+              <th className="py-2 text-left font-normal">Project</th>
+              <th className="py-2 text-right font-normal">Amount</th>
+              {editCurrency !== mainCurrency && (
+                <th className="py-2 text-right font-normal pl-3">{editCurrency}</th>
+              )}
+              <th className="py-2 text-right font-normal pl-3">{mainCurrency}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {activeProjects.map((p) => {
+              const client = clients.find((c) => c.id === p.clientId);
+              const checked = editProjectIds.includes(p.id);
+              const pCur = p.currency || mainCurrency;
+              const inEditCur = convertTo(p.amount, p.currency, editCurrency);
+              const inMainCur = convert(p.amount, p.currency);
+              return (
+                <tr key={p.id} className="text-[13px] border-b border-border last:border-0">
+                  <td className="py-2">
+                    <label className="flex items-center gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleEditProject(p.id)}
+                        className="accent-foreground"
+                      />
+                      <span className="text-foreground">{p.name}</span>
+                      <span className="text-[11px] text-muted-foreground">({client?.name})</span>
+                    </label>
+                  </td>
+                  <td className="py-2 text-right font-mono tabular-nums text-[12px] text-muted-foreground whitespace-nowrap">
+                    <MaskedAmount value={p.amount} currency={p.currency} showOriginal />
+                  </td>
+                  {editCurrency !== mainCurrency && (
+                    <td className="py-2 text-right font-mono tabular-nums text-[12px] text-muted-foreground whitespace-nowrap pl-3">
+                      {pCur !== editCurrency ? <MaskedAmount value={Math.round(inEditCur)} currency={editCurrency} showOriginal /> : ""}
+                    </td>
+                  )}
+                  <td className="py-2 text-right font-mono tabular-nums text-[12px] text-muted-foreground whitespace-nowrap pl-3">
+                    {pCur !== mainCurrency ? <MaskedAmount value={Math.round(inMainCur)} currency={mainCurrency} showOriginal /> : ""}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        <div className="border-t border-border pt-3 mt-1">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[12px] text-muted-foreground">Subtotal</span>
+            <span className="text-[14px] font-mono tabular-nums">
+              <MaskedAmount value={Math.round(editTotalInCur)} currency={editCurrency} showOriginal />
+            </span>
+          </div>
+
+          <div>
+            <span className="text-[11px] text-muted-foreground uppercase tracking-[0.06em]">
+              Estimated fees ({editCurrency})
+            </span>
+            <Input
+              type="number"
+              value={editFees}
+              onChange={(e) => setEditFees(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+        </div>
+      </AppDialog>
+
+      <AppDialog title="Delete invoice?" open={deleteOpen} onOpenChange={setDeleteOpen}
+        footer={<><Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button><Button onClick={handleDelete} className="bg-destructive! text-destructive-foreground! border-destructive!">Delete</Button></>}
+      >
+        <p className="text-[13px] text-muted-foreground">This action cannot be undone.</p>
+      </AppDialog>
+
+      <AppDialog title="Mark as paid?" open={payOpen} onOpenChange={setPayOpen}
+        footer={<><Button variant="outline" onClick={() => setPayOpen(false)}>Cancel</Button><Button onClick={handlePay}>Confirm</Button></>}
+      >
+        <p className="text-[13px] text-muted-foreground">This will mark the invoice as paid with today&apos;s date.</p>
+      </AppDialog>
     </AppShell>
   );
 }

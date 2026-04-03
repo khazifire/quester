@@ -3,13 +3,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { AppDialog } from "@/components/ui/dialog";
 import { useAppStore } from "@/stores/appStore";
 import { useFinanceStore } from "@/stores/financeStore";
 import { useHabitStore } from "@/stores/habitStore";
@@ -432,118 +426,55 @@ export default function SettingsPage() {
         </section>
       </div>
 
-      <Dialog open={editCatOpen} onOpenChange={setEditCatOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit category</DialogTitle>
-          </DialogHeader>
-          <div className="flex gap-2 items-end py-4">
-            <Input
-              placeholder="Name"
-              value={editCatForm.name}
-              onChange={(e) => setEditCatForm((f) => ({ ...f, name: e.target.value }))}
-              className="flex-1"
-            />
-            <input
-              type="color"
-              value={editCatForm.color}
-              onChange={(e) => setEditCatForm((f) => ({ ...f, color: e.target.value }))}
-              className="w-10 h-10 rounded cursor-pointer bg-transparent border border-border"
-            />
-          </div>
-          <DialogFooter>
-            <Button onClick={handleEditCat}>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AppDialog title="Edit category" open={editCatOpen} onOpenChange={setEditCatOpen}
+        footer={<Button onClick={handleEditCat}>Save</Button>}
+      >
+        <div className="flex gap-2 items-end">
+          <Input placeholder="Name" value={editCatForm.name}
+            onChange={(e) => setEditCatForm((f) => ({ ...f, name: e.target.value }))} className="flex-1" />
+          <input type="color" value={editCatForm.color}
+            onChange={(e) => setEditCatForm((f) => ({ ...f, color: e.target.value }))}
+            className="w-10 h-10 rounded cursor-pointer bg-transparent border border-border" />
+        </div>
+      </AppDialog>
 
-      <Dialog open={editHabitOpen} onOpenChange={setEditHabitOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit habit</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-3 py-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Icon"
-                value={editHabitForm.icon}
-                onChange={(e) => setEditHabitForm((f) => ({ ...f, icon: e.target.value }))}
-                className="w-16"
-              />
-              <Input
-                placeholder="Name"
-                value={editHabitForm.name}
-                onChange={(e) => setEditHabitForm((f) => ({ ...f, name: e.target.value }))}
-                className="flex-1"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Select value={editHabitForm.category} onValueChange={(v) => setEditHabitForm((f) => ({ ...f, category: v ?? "system" }))}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {HABIT_CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={editHabitForm.active ? "active" : "inactive"} onValueChange={(v) => setEditHabitForm((f) => ({ ...f, active: v === "active" }))}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleEditHabit}>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AppDialog title="Edit habit" open={editHabitOpen} onOpenChange={setEditHabitOpen}
+        footer={<Button onClick={handleEditHabit}>Save</Button>}
+      >
+        <div className="flex gap-2">
+          <Input placeholder="Icon" value={editHabitForm.icon}
+            onChange={(e) => setEditHabitForm((f) => ({ ...f, icon: e.target.value }))} className="w-16" />
+          <Input placeholder="Name" value={editHabitForm.name}
+            onChange={(e) => setEditHabitForm((f) => ({ ...f, name: e.target.value }))} className="flex-1" />
+        </div>
+        <div className="flex gap-2">
+          <Select value={editHabitForm.category} onValueChange={(v) => setEditHabitForm((f) => ({ ...f, category: v ?? "system" }))}>
+            <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {HABIT_CATEGORIES.map((c) => (<SelectItem key={c} value={c}>{c}</SelectItem>))}
+            </SelectContent>
+          </Select>
+          <Select value={editHabitForm.active ? "active" : "inactive"} onValueChange={(v) => setEditHabitForm((f) => ({ ...f, active: v === "active" }))}>
+            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </AppDialog>
 
-      <Dialog open={deleteHabitOpen} onOpenChange={setDeleteHabitOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete habit?</DialogTitle>
-          </DialogHeader>
-          <p className="text-[13px] text-muted-foreground py-4 px-6">
-            This will delete the habit and all its log history. This cannot be undone.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteHabitOpen(false)}>Cancel</Button>
-            <Button
-              onClick={handleDeleteHabit}
-              className="!bg-destructive !text-destructive-foreground !border-destructive"
-            >
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AppDialog title="Delete habit?" open={deleteHabitOpen} onOpenChange={setDeleteHabitOpen}
+        footer={<><Button variant="outline" onClick={() => setDeleteHabitOpen(false)}>Cancel</Button><Button onClick={handleDeleteHabit} className="bg-destructive! text-destructive-foreground! border-destructive!">Delete</Button></>}
+      >
+        <p className="text-[13px] text-muted-foreground">This will delete the habit and all its log history. This cannot be undone.</p>
+      </AppDialog>
 
-      <Dialog open={deleteCatOpen} onOpenChange={setDeleteCatOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete category?</DialogTitle>
-          </DialogHeader>
-          <p className="text-[13px] text-muted-foreground py-4 px-6">
-            Expenses using this category will keep their data but show no category. This cannot be undone.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteCatOpen(false)}>Cancel</Button>
-            <Button
-              onClick={handleDeleteCat}
-              className="!bg-destructive !text-destructive-foreground !border-destructive"
-            >
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AppDialog title="Delete category?" open={deleteCatOpen} onOpenChange={setDeleteCatOpen}
+        footer={<><Button variant="outline" onClick={() => setDeleteCatOpen(false)}>Cancel</Button><Button onClick={handleDeleteCat} className="bg-destructive! text-destructive-foreground! border-destructive!">Delete</Button></>}
+      >
+        <p className="text-[13px] text-muted-foreground">Expenses using this category will keep their data but show no category. This cannot be undone.</p>
+      </AppDialog>
     </AppShell>
   );
 }

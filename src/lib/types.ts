@@ -115,7 +115,22 @@ export interface CalendarEvent {
   type: "meeting" | "focus" | "personal";
   clientId: string | null;
   projectId: string | null;
-  googleEventId: string | null;
+  createdAt: number;
+}
+
+export interface Income {
+  id: string;
+  name: string;
+  amount: number;
+  currency?: string;
+  category: "salary" | "freelance" | "passive" | "other";
+  recurring: boolean; // if true, counts every month from date onwards
+  date: string; // start date for recurring; received date for one-time
+  endDate?: string; // if set, recurring stops after this month (YYYY-MM)
+  // Snapshot fields — auto-created monthly records for history
+  isSnapshot?: boolean; // true = materialized monthly record, not a definition
+  snapshotMonth?: string; // YYYY-MM this snapshot belongs to
+  sourceId?: string; // income entry or project id that spawned this snapshot
   createdAt: number;
 }
 

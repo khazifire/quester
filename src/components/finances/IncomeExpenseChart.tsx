@@ -10,7 +10,7 @@ import { useFinanceStore } from "@/stores/financeStore";
 import { useCurrencyStore } from "@/stores/currencyStore";
 
 export function IncomeExpenseChart() {
-  const invoices = useFinanceStore((s) => s.invoices);
+  const getMonthlyIncome = useFinanceStore((s) => s.getMonthlyIncome);
   const expenses = useFinanceStore((s) => s.expenses);
   const convert = useCurrencyStore((s) => s.convert);
 
@@ -20,13 +20,11 @@ export function IncomeExpenseChart() {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     const monthName = d.toLocaleDateString("en-US", { month: "short" });
-    const monthIncome = invoices
-      .filter((inv) => inv.status === "paid" && inv.paidDate?.startsWith(key))
-      .reduce((sum, inv) => sum + convert(inv.amount, inv.currency), 0);
+    const monthIncome = getMonthlyIncome(key);
     const monthExpenses = expenses
       .filter((e) => e.date.startsWith(key))
       .reduce((sum, e) => sum + convert(e.amount, e.currency), 0);
-    data.push({ month: monthName, income: monthIncome, expenses: monthExpenses });
+    data.push({ month: monthName, income: Math.round(monthIncome), expenses: Math.round(monthExpenses) });
   }
 
   return (

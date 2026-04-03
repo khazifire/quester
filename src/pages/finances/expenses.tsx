@@ -4,13 +4,7 @@ import { FinanceNav } from "@/components/layout/FinanceNav";
 import { QuickAdd } from "@/components/finances/QuickAdd";
 import { MaskedAmount } from "@/components/shared/MaskedAmount";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { AppDialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -145,65 +139,33 @@ export default function ExpensesPage() {
         </p>
       )}
 
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit expense</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-3 py-4">
-            <Input
-              placeholder="Name"
-              value={editForm.name}
-              onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
-            />
-            <div className="flex gap-2">
-              <Input
-                placeholder="Amount"
-                type="number"
-                value={editForm.amount}
-                onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))}
-                className="flex-1"
-              />
-              <Select value={editForm.currency} onValueChange={(v) => setEditForm((f) => ({ ...f, currency: v ?? mainCurrency }))}>
-                <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {wallets.map((w) => (
-                    <SelectItem key={w.currency} value={w.currency}>{w.currency}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Select value={editForm.categoryId} onValueChange={(v) => setEditForm((f) => ({ ...f, categoryId: v ?? "" }))}>
-              <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
-              <SelectContent>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleEdit}>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AppDialog title="Edit expense" open={editOpen} onOpenChange={setEditOpen}
+        footer={<Button onClick={handleEdit}>Save</Button>}
+      >
+        <Input placeholder="Name" value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} />
+        <div className="flex gap-2">
+          <Input placeholder="Amount" type="number" value={editForm.amount}
+            onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))} className="flex-1" />
+          <Select value={editForm.currency} onValueChange={(v) => setEditForm((f) => ({ ...f, currency: v ?? mainCurrency }))}>
+            <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {wallets.map((w) => (<SelectItem key={w.currency} value={w.currency}>{w.currency}</SelectItem>))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Select value={editForm.categoryId} onValueChange={(v) => setEditForm((f) => ({ ...f, categoryId: v ?? "" }))}>
+          <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
+          <SelectContent>
+            {categories.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
+          </SelectContent>
+        </Select>
+      </AppDialog>
 
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete expense?</DialogTitle>
-          </DialogHeader>
-          <p className="text-[13px] text-muted-foreground py-4 px-6">
-            This action cannot be undone.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
-            <Button onClick={handleDelete} className="!bg-destructive !text-destructive-foreground !border-destructive">
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AppDialog title="Delete expense?" open={deleteOpen} onOpenChange={setDeleteOpen}
+        footer={<><Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button><Button onClick={handleDelete} className="bg-destructive! text-destructive-foreground! border-destructive!">Delete</Button></>}
+      >
+        <p className="text-[13px] text-muted-foreground">This action cannot be undone.</p>
+      </AppDialog>
     </AppShell>
   );
 }

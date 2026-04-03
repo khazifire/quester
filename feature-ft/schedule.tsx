@@ -44,7 +44,6 @@ export default function SchedulePage() {
       type: form.type,
       clientId: form.clientId || null,
       projectId: null,
-      googleEventId: null,
     });
     toast.success("Event created");
     setForm({ title: "", date: getToday(), time: "09:00", duration: "60", type: "meeting", clientId: "" });

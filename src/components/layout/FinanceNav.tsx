@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 const FINANCE_TABS = [
   { href: "/finances", label: "Report" },
   { href: "/finances/expenses", label: "Expenses" },
+  { href: "/finances/income", label: "Income" },
   { href: "/finances/invoices", label: "Invoices" },
   { href: "/finances/subscriptions", label: "Subscriptions" },
   { href: "/finances/savings", label: "Savings" },

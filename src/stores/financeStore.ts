@@ -7,6 +7,7 @@ import type {
   Invoice,
   SavingGoal,
   ExpenseCategory,
+  Income,
 } from "@/lib/types";
 import { DEFAULT_CATEGORIES } from "@/lib/constants";
 import { useProjectStore } from "./projectStore";
@@ -18,6 +19,7 @@ interface FinanceState {
   invoices: Invoice[];
   savingGoals: SavingGoal[];
   categories: ExpenseCategory[];
+  incomes: Income[];
 
   addExpense: (expense: Omit<Expense, "id" | "createdAt">) => string;
   updateExpense: (id: string, partial: Partial<Expense>) => void;
@@ -43,6 +45,16 @@ interface FinanceState {
   updateCategory: (id: string, partial: Partial<ExpenseCategory>) => void;
   deleteCategory: (id: string) => void;
 
+  materializedMonths: string[];
+  addIncome: (income: Omit<Income, "id" | "createdAt">) => string;
+  updateIncome: (id: string, partial: Partial<Income>) => void;
+  deleteIncome: (id: string) => void;
+  materializeMonth: (
+    monthKey: string,
+    retainerItems: { id: string; name: string; amount: number; currency?: string }[]
+  ) => void;
+  getMonthlyIncomeBreakdown: (monthKey: string) => { invoices: number; recurring: number; oneTime: number };
+
   getExpensesByMonth: (monthKey: string) => Expense[];
   getCategoryBreakdown: (monthKey: string) => { category: ExpenseCategory; total: number }[];
   getAvgMonthlyExpenses: (months?: number) => number;
@@ -61,6 +73,8 @@ export const useFinanceStore = create<FinanceState>()(
       invoices: [],
       savingGoals: [],
       categories: DEFAULT_CATEGORIES,
+      incomes: [],
+      materializedMonths: [],
 
       addExpense: (expense) => {
         const id = nanoid();
@@ -222,14 +236,20 @@ export const useFinanceStore = create<FinanceState>()(
           .reduce((sum, s) => sum + convert(s.amount, s.currency), 0);
       },
       getCashFlowForecast: (months) => {
+        const convert = useCurrencyStore.getState().convert;
         const mrr = useProjectStore.getState().getMRR();
+        // Add recurring salary/passive income to the forecast income side
+        const recurringIncome = get().incomes
+          .filter((i) => i.recurring && !i.isSnapshot && !i.endDate)
+          .reduce((sum, i) => sum + convert(i.amount, i.currency), 0);
+        const totalMonthlyIncome = mrr + recurringIncome;
         const avgExp = get().getAvgMonthlyExpenses();
         const now = new Date();
         const result: { month: string; projected: number }[] = [];
         for (let i = 1; i <= months; i++) {
           const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
           const monthName = d.toLocaleDateString("en-US", { month: "short" });
-          result.push({ month: monthName, projected: mrr - avgExp });
+          result.push({ month: monthName, projected: totalMonthlyIncome - avgExp });
         }
         return result;
       },
@@ -241,14 +261,114 @@ export const useFinanceStore = create<FinanceState>()(
         return emGoal.savedAmount / avg;
       },
       getMonthlyIncome: (monthKey) => {
-        const convert = useCurrencyStore.getState().convert;
-        return get()
-          .invoices.filter(
-            (inv) => inv.status === "paid" && inv.paidDate && inv.paidDate.startsWith(monthKey)
-          )
-          .reduce((sum, inv) => sum + convert(inv.amount, inv.currency), 0);
+        const breakdown = get().getMonthlyIncomeBreakdown(monthKey);
+        return breakdown.invoices + breakdown.recurring + breakdown.oneTime;
       },
       getCategoryById: (id) => get().categories.find((c) => c.id === id),
+
+      addIncome: (income) => {
+        const id = nanoid();
+        set((s) => ({ incomes: [...s.incomes, { ...income, id, createdAt: Date.now() }] }));
+        return id;
+      },
+      updateIncome: (id, partial) =>
+        set((s) => ({ incomes: s.incomes.map((inc) => (inc.id === id ? { ...inc, ...partial } : inc)) })),
+      deleteIncome: (id) =>
+        set((s) => ({ incomes: s.incomes.filter((inc) => inc.id !== id) })),
+
+      materializeMonth: (monthKey, retainerItems) => {
+        const { materializedMonths, incomes } = get();
+        if (materializedMonths.includes(monthKey)) return;
+
+        const convert = useCurrencyStore.getState().convert;
+        const snapshots: Omit<typeof incomes[0], "id" | "createdAt">[] = [];
+
+        // Snapshot active recurring income entries
+        incomes
+          .filter(
+            (inc) =>
+              inc.recurring &&
+              !inc.isSnapshot &&
+              inc.date.substring(0, 7) <= monthKey &&
+              (!inc.endDate || inc.endDate >= monthKey)
+          )
+          .forEach((inc) => {
+            snapshots.push({
+              name: inc.name,
+              amount: inc.amount,
+              currency: inc.currency,
+              category: inc.category,
+              recurring: false,
+              date: `${monthKey}-01`,
+              isSnapshot: true,
+              snapshotMonth: monthKey,
+              sourceId: inc.id,
+            });
+          });
+
+        // Snapshot active retainer projects
+        retainerItems.forEach((p) => {
+          snapshots.push({
+            name: p.name,
+            amount: convert(p.amount, p.currency),
+            currency: useCurrencyStore.getState().mainCurrency,
+            category: "freelance",
+            recurring: false,
+            date: `${monthKey}-01`,
+            isSnapshot: true,
+            snapshotMonth: monthKey,
+            sourceId: p.id,
+          });
+        });
+
+        const newIncomes = snapshots.map((s) => ({
+          ...s,
+          id: nanoid(),
+          createdAt: Date.now(),
+        }));
+
+        set((state) => ({
+          incomes: [...state.incomes, ...newIncomes],
+          materializedMonths: [...state.materializedMonths, monthKey],
+        }));
+      },
+
+      getMonthlyIncomeBreakdown: (monthKey) => {
+        const convert = useCurrencyStore.getState().convert;
+        const { invoices, incomes, materializedMonths } = get();
+
+        const invoiceTotal = invoices
+          .filter((inv) => inv.status === "paid" && inv.paidDate?.startsWith(monthKey))
+          .reduce((sum, inv) => sum + convert(inv.amount, inv.currency), 0);
+
+        const isMaterialized = materializedMonths.includes(monthKey);
+
+        if (isMaterialized) {
+          // Use snapshot records for this month
+          const snapshotTotal = incomes
+            .filter((inc) => inc.isSnapshot && inc.snapshotMonth === monthKey)
+            .reduce((sum, inc) => sum + convert(inc.amount, inc.currency), 0);
+          const oneTimeTotal = incomes
+            .filter((inc) => !inc.isSnapshot && !inc.recurring && inc.date.startsWith(monthKey))
+            .reduce((sum, inc) => sum + convert(inc.amount, inc.currency), 0);
+          return { invoices: invoiceTotal, recurring: snapshotTotal, oneTime: oneTimeTotal };
+        }
+
+        // Dynamic computation for non-materialized months (future or current)
+        const recurringTotal = incomes
+          .filter(
+            (inc) =>
+              inc.recurring &&
+              !inc.isSnapshot &&
+              inc.date.substring(0, 7) <= monthKey &&
+              (!inc.endDate || inc.endDate >= monthKey)
+          )
+          .reduce((sum, inc) => sum + convert(inc.amount, inc.currency), 0);
+        const oneTimeTotal = incomes
+          .filter((inc) => !inc.isSnapshot && !inc.recurring && inc.date.startsWith(monthKey))
+          .reduce((sum, inc) => sum + convert(inc.amount, inc.currency), 0);
+        return { invoices: invoiceTotal, recurring: recurringTotal, oneTime: oneTimeTotal };
+      },
     }),
     {
       name: "questline-finance",
