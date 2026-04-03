@@ -4,6 +4,7 @@ import { MetricCard } from "@/components/shared/MetricCard";
 import { MaskedAmount } from "@/components/shared/MaskedAmount";
 import { useRunningStore } from "@/stores/runningStore";
 import { formatDuration, formatPace, formatDate, getMonthKey } from "@/lib/utils";
+import { RUNNING_EVENT_TYPE_LABELS } from "@/lib/constants";
 
 export default function StatsPage() {
   const runs = useRunningStore((s) => s.runs);
@@ -90,8 +91,9 @@ export default function StatsPage() {
 
             {pbs.length > 0 ? (
               <>
-                <div className="grid grid-cols-[100px_100px_80px_80px_1fr] gap-3 px-0 py-2.5 text-[11px] uppercase tracking-[0.06em] text-muted-foreground border-b border-border">
+                <div className="grid grid-cols-[90px_70px_100px_80px_80px_1fr] gap-3 px-0 py-2.5 text-[11px] uppercase tracking-[0.06em] text-muted-foreground border-b border-border">
                   <span>Distance</span>
+                  <span>Type</span>
                   <span>Time</span>
                   <span>Pace</span>
                   <span>Date</span>
@@ -100,10 +102,13 @@ export default function StatsPage() {
 
                 {pbs.map((pb) => (
                   <div
-                    key={pb.label}
-                    className="grid grid-cols-[100px_100px_80px_80px_1fr] gap-3 py-2.5 text-[13px] border-b border-border last:border-0"
+                    key={`${pb.label}-${pb.type}`}
+                    className="grid grid-cols-[90px_70px_100px_80px_80px_1fr] gap-3 py-2.5 text-[13px] border-b border-border last:border-0"
                   >
                     <span className="font-medium">{pb.label}</span>
+                    <span className="text-[11px] text-muted-foreground capitalize">
+                      {RUNNING_EVENT_TYPE_LABELS[pb.type]}
+                    </span>
                     <span className="font-mono tabular-nums">
                       {formatDuration(pb.run.durationSeconds)}
                     </span>
@@ -119,7 +124,7 @@ export default function StatsPage() {
               </>
             ) : (
               <p className="text-[12px] text-muted-foreground py-4">
-                Log runs at standard distances (5K, 10K, half marathon, marathon) to see personal bests
+                Log runs linked to events (5K, 10K, half, marathon) to see personal bests by distance and type
               </p>
             )}
           </div>

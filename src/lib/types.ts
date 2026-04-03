@@ -125,8 +125,18 @@ export interface Run {
   date: string;
   distanceKm: number;
   durationSeconds: number;
-  eventId: string | null;
+  eventId?: string | null;
   createdAt: number;
+}
+
+export interface RunActivity {
+  id: string;
+  name: string;
+  date: string;
+  distanceKm: number;
+  durationSeconds: number;
+  type: "road" | "spartan" | "other";
+  source: "run" | "event";
 }
 
 export interface RunningEvent {
@@ -135,6 +145,7 @@ export interface RunningEvent {
   location: string;
   date: string;
   distanceKm: number;
+  type: "road" | "spartan" | "other";
   entryFee: number;
   currency?: string;
   status: "upcoming" | "completed" | "cancelled";

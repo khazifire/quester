@@ -21,7 +21,7 @@ import {
 import { useRunningStore } from "@/stores/runningStore";
 import { useCurrencyStore } from "@/stores/currencyStore";
 import { formatDate, getToday } from "@/lib/utils";
-import { RUN_COST_TYPES, RUN_COST_LABELS } from "@/lib/constants";
+import { RUN_COST_TYPES, RUN_COST_LABELS, RUNNING_EVENT_TYPES, RUNNING_EVENT_TYPE_LABELS } from "@/lib/constants";
 import type { RunningEvent, RunCost } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -51,6 +51,7 @@ export default function EventsPage() {
     location: "",
     date: getToday(),
     distanceKm: "",
+    type: "road" as RunningEvent["type"],
     entryFee: "",
     currency: mainCurrency,
   });
@@ -65,12 +66,13 @@ export default function EventsPage() {
       location: addForm.location.trim(),
       date: addForm.date,
       distanceKm: Number(addForm.distanceKm) || 0,
+      type: addForm.type,
       entryFee: Number(addForm.entryFee) || 0,
       currency: addForm.currency,
       status: "upcoming",
     });
     toast.success("Event added");
-    setAddForm({ name: "", location: "", date: getToday(), distanceKm: "", entryFee: "", currency: mainCurrency });
+    setAddForm({ name: "", location: "", date: getToday(), distanceKm: "", type: "road", entryFee: "", currency: mainCurrency });
     setAddOpen(false);
   }
 
@@ -82,6 +84,7 @@ export default function EventsPage() {
     location: "",
     date: "",
     distanceKm: "",
+    type: "road" as RunningEvent["type"],
     status: "upcoming" as RunningEvent["status"],
   });
 
@@ -92,6 +95,7 @@ export default function EventsPage() {
       location: ev.location,
       date: ev.date,
       distanceKm: String(ev.distanceKm),
+      type: ev.type ?? "road",
       status: ev.status,
     });
     setEditOpen(true);
@@ -104,6 +108,7 @@ export default function EventsPage() {
       location: editForm.location.trim(),
       date: editForm.date,
       distanceKm: Number(editForm.distanceKm) || 0,
+      type: editForm.type,
       status: editForm.status,
     });
     toast.success("Event updated");
@@ -205,7 +210,7 @@ export default function EventsPage() {
           variant="outline"
           className="text-[12px] h-7 px-3 cursor-pointer"
           onClick={() => {
-            setAddForm({ name: "", location: "", date: getToday(), distanceKm: "", entryFee: "", currency: mainCurrency });
+            setAddForm({ name: "", location: "", date: getToday(), distanceKm: "", type: "road", entryFee: "", currency: mainCurrency });
             setAddOpen(true);
           }}
         >
@@ -282,15 +287,36 @@ export default function EventsPage() {
                 onChange={(e) => setAddForm((f) => ({ ...f, date: e.target.value }))}
                 className="flex-1"
               />
-              <Input
-                placeholder="Distance (km)"
-                type="number"
-                step="0.01"
+              <Select
                 value={addForm.distanceKm}
-                onChange={(e) => setAddForm((f) => ({ ...f, distanceKm: e.target.value }))}
-                className="flex-1"
-              />
+                onValueChange={(v) => setAddForm((f) => ({ ...f, distanceKm: v }))}
+              >
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Distance" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5 km</SelectItem>
+                  <SelectItem value="10">10 km</SelectItem>
+                  <SelectItem value="21.1">21.1 km (Half)</SelectItem>
+                  <SelectItem value="42.195">42.195 km (Full)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+            <Select
+              value={addForm.type}
+              onValueChange={(v) => setAddForm((f) => ({ ...f, type: v as RunningEvent["type"] }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                {RUNNING_EVENT_TYPES.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {RUNNING_EVENT_TYPE_LABELS[t]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <div className="flex gap-2">
               <Input
                 placeholder="Entry fee"
@@ -346,15 +372,36 @@ export default function EventsPage() {
                 onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))}
                 className="flex-1"
               />
-              <Input
-                placeholder="Distance (km)"
-                type="number"
-                step="0.01"
+              <Select
                 value={editForm.distanceKm}
-                onChange={(e) => setEditForm((f) => ({ ...f, distanceKm: e.target.value }))}
-                className="flex-1"
-              />
+                onValueChange={(v) => setEditForm((f) => ({ ...f, distanceKm: v }))}
+              >
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Distance" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5 km</SelectItem>
+                  <SelectItem value="10">10 km</SelectItem>
+                  <SelectItem value="21.1">21.1 km (Half)</SelectItem>
+                  <SelectItem value="42.195">42.195 km (Full)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+            <Select
+              value={editForm.type}
+              onValueChange={(v) => setEditForm((f) => ({ ...f, type: v as RunningEvent["type"] }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                {RUNNING_EVENT_TYPES.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {RUNNING_EVENT_TYPE_LABELS[t]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select
               value={editForm.status}
               onValueChange={(v) => setEditForm((f) => ({ ...f, status: v as RunningEvent["status"] }))}

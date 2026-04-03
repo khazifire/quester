@@ -9,6 +9,7 @@ import { useCurrencyStore } from "./currencyStore";
 interface PersonalBest {
   label: string;
   distanceKm: number;
+  type: "road" | "spartan" | "other";
   run: Run;
   pace: number;
 }
@@ -153,22 +154,32 @@ export const useRunningStore = create<RunningState>()(
       getEventCosts: (eventId) => get().costs.filter((c) => c.eventId === eventId),
 
       getPersonalBests: () => {
-        const { runs } = get();
+        const { runs, events } = get();
+        const eventTypeMap = new Map(events.map((e) => [e.id, e.type ?? "road"] as const));
         const bests: PersonalBest[] = [];
+        const types = ["road", "spartan", "other"] as const;
         for (const dist of STANDARD_DISTANCES) {
-          const matching = runs.filter(
-            (r) => Math.abs(r.distanceKm - dist.km) <= dist.tolerance && r.durationSeconds > 0
-          );
-          if (matching.length === 0) continue;
-          const fastest = matching.reduce((best, r) =>
-            r.durationSeconds < best.durationSeconds ? r : best
-          );
-          bests.push({
-            label: dist.label,
-            distanceKm: dist.km,
-            run: fastest,
-            pace: fastest.durationSeconds / fastest.distanceKm,
-          });
+          for (const type of types) {
+            const matching = runs.filter((r) => {
+              const runType = r.eventId ? (eventTypeMap.get(r.eventId) ?? "road") : "road";
+              return (
+                runType === type &&
+                Math.abs(r.distanceKm - dist.km) <= dist.tolerance &&
+                r.durationSeconds > 0
+              );
+            });
+            if (matching.length === 0) continue;
+            const fastest = matching.reduce((best, r) =>
+              r.durationSeconds < best.durationSeconds ? r : best
+            );
+            bests.push({
+              label: dist.label,
+              distanceKm: dist.km,
+              type,
+              run: fastest,
+              pace: fastest.durationSeconds / fastest.distanceKm,
+            });
+          }
         }
         return bests;
       },

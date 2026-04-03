@@ -17,6 +17,14 @@ export const INVOICE_STATUSES = ["draft", "sent", "paid", "overdue"] as const;
 
 export const EVENT_TYPES = ["meeting", "focus", "personal"] as const;
 
+export const RUNNING_EVENT_TYPES = ["road", "spartan", "other"] as const;
+
+export const RUNNING_EVENT_TYPE_LABELS: Record<string, string> = {
+  road: "Road",
+  spartan: "Spartan",
+  other: "Other",
+};
+
 export const RUN_COST_TYPES = [
   "travel",
   "accommodation",
