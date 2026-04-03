@@ -46,6 +46,7 @@ function parseCSVLine(line: string): string[] {
 export default function RunLogPage() {
   const runs = useRunningStore((s) => s.runs);
   const addRun = useRunningStore((s) => s.addRun);
+  const addEvent = useRunningStore((s) => s.addEvent);
   const updateRun = useRunningStore((s) => s.updateRun);
   const deleteRun = useRunningStore((s) => s.deleteRun);
   const getRunCosts = useRunningStore((s) => s.getRunCosts);
@@ -170,17 +171,27 @@ export default function RunLogPage() {
   const detailTotal = detailCosts.reduce((s, c) => s + convert(c.amount, c.currency), 0);
 
   // CSV Import dialog
+  type ImportRow = {
+    name: string;
+    date: string;
+    distanceKm: number;
+    durationSeconds: number;
+    category: "run" | "event";
+    type: "road" | "spartan" | "other";
+  };
+
   const [importOpen, setImportOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [importPreview, setImportPreview] = useState<{ name: string; date: string; distanceKm: number; durationSeconds: number }[]>([]);
+  const [importPreview, setImportPreview] = useState<ImportRow[]>([]);
   const [importError, setImportError] = useState("");
 
   function downloadTemplate() {
     const csv = [
-      "name,date,distanceKm,duration",
-      '"Morning Run","2024-01-15","5","25:30"',
-      '"Evening 10K","2024-01-20","10","52:15"',
-      '"Long Run","2024-01-28","15","1:22:45"',
+      "name,date,distanceKm,duration,type,category",
+      '"Morning Run","2024-01-15","5","25:30","road","run"',
+      '"Evening 10K","2024-01-20","10","52:15","road","run"',
+      '"Half Marathon","2024-03-10","21.1","1:52:30","road","event"',
+      '"Spartan Sprint","2024-04-20","5","45:00","spartan","event"',
     ].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -200,47 +211,69 @@ export default function RunLogPage() {
       try {
         const text = ev.target?.result as string;
         const lines = text.trim().split(/\r?\n/);
-        if (lines.length < 2) {
-          setImportError("File is empty or has no data rows");
-          return;
-        }
+        if (lines.length < 2) { setImportError("File is empty or has no data rows"); return; }
         const headers = parseCSVLine(lines[0]).map((h) => h.toLowerCase().replace(/\s/g, ""));
         const nameIdx = headers.indexOf("name");
         const dateIdx = headers.indexOf("date");
         const distIdx = headers.indexOf("distancekm");
         const durIdx = headers.indexOf("duration");
+        const typeIdx = headers.indexOf("type");
+        const catIdx = headers.indexOf("category");
         if (nameIdx < 0 || dateIdx < 0 || distIdx < 0 || durIdx < 0) {
           setImportError("CSV must have columns: name, date, distanceKm, duration");
           return;
         }
-        const rows: { name: string; date: string; distanceKm: number; durationSeconds: number }[] = [];
+        const rows: ImportRow[] = [];
         for (let i = 1; i < lines.length; i++) {
           if (!lines[i].trim()) continue;
           const vals = parseCSVLine(lines[i]);
-          const name = vals[nameIdx]?.replace(/"/g, "").trim();
-          const date = vals[dateIdx]?.replace(/"/g, "").trim();
-          const dist = Number(vals[distIdx]?.replace(/"/g, "").trim());
-          const dur = parseDuration(vals[durIdx]?.replace(/"/g, "").trim() ?? "");
+          const clean = (idx: number) => (vals[idx] ?? "").replace(/"/g, "").trim();
+          const name = clean(nameIdx);
+          const date = clean(dateIdx);
+          const dist = Number(clean(distIdx));
+          const dur = parseDuration(clean(durIdx));
           if (!name || !date || !dist || dur === null) continue;
-          rows.push({ name, date, distanceKm: dist, durationSeconds: dur });
+          const rawType = clean(typeIdx);
+          const rawCat = clean(catIdx);
+          const validTypes = ["road", "spartan", "other"];
+          rows.push({
+            name, date, distanceKm: dist, durationSeconds: dur,
+            type: (validTypes.includes(rawType) ? rawType : "road") as ImportRow["type"],
+            category: rawCat === "event" ? "event" : "run",
+          });
         }
-        if (rows.length === 0) {
-          setImportError("No valid rows found. Check the format matches the template.");
-          return;
-        }
+        if (rows.length === 0) { setImportError("No valid rows found. Check the format matches the template."); return; }
         setImportPreview(rows);
-      } catch {
-        setImportError("Failed to parse file");
-      }
+      } catch { setImportError("Failed to parse file"); }
     };
     reader.readAsText(file);
   }
 
   function handleImport() {
+    let runsAdded = 0, eventsAdded = 0;
     for (const row of importPreview) {
-      addRun(row);
+      if (row.category === "event") {
+        addEvent({
+          name: row.name,
+          location: "",
+          date: row.date,
+          distanceKm: row.distanceKm,
+          type: row.type,
+          finishSeconds: row.durationSeconds,
+          entryFee: 0,
+          currency: mainCurrency,
+          status: "completed",
+        });
+        eventsAdded++;
+      } else {
+        addRun({ name: row.name, date: row.date, distanceKm: row.distanceKm, durationSeconds: row.durationSeconds });
+        runsAdded++;
+      }
     }
-    toast.success(`Imported ${importPreview.length} run${importPreview.length !== 1 ? "s" : ""}`);
+    const parts = [];
+    if (runsAdded > 0) parts.push(`${runsAdded} run${runsAdded !== 1 ? "s" : ""}`);
+    if (eventsAdded > 0) parts.push(`${eventsAdded} event${eventsAdded !== 1 ? "s" : ""}`);
+    toast.success(`Imported ${parts.join(" and ")}`);
     setImportPreview([]);
     setImportError("");
     if (fileRef.current) fileRef.current.value = "";
@@ -566,71 +599,97 @@ export default function RunLogPage() {
       {/* Import CSV Dialog */}
       <Dialog open={importOpen} onOpenChange={(open) => {
         setImportOpen(open);
-        if (!open) { setImportPreview([]); setImportError(""); }
+        if (!open) { setImportPreview([]); setImportError(""); if (fileRef.current) fileRef.current.value = ""; }
       }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-[480px]">
           <DialogHeader>
-            <DialogTitle>Import runs from CSV</DialogTitle>
+            <DialogTitle>Import from CSV</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <p className="text-[12px] text-muted-foreground">
-              Download the template, fill in your runs, then import the file.
-              Columns: <span className="font-mono">name, date, distanceKm, duration</span>
-            </p>
-            <div className="flex gap-3">
-              <Button variant="outline" className="flex-1 text-[12px]" onClick={downloadTemplate}>
+
+          <div className="space-y-5 py-2">
+            {/* Column reference */}
+            <div className="rounded-lg bg-white/[0.03] border border-border p-3">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-[0.06em] mb-2.5">CSV columns</div>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[11px]">
+                {[
+                  ["name", "required"],
+                  ["date", "YYYY-MM-DD"],
+                  ["distanceKm", "required"],
+                  ["duration", "H:MM:SS or MM:SS"],
+                  ["type", "road / spartan / other"],
+                  ["category", "run / event"],
+                ].map(([col, hint]) => (
+                  <div key={col} className="flex items-baseline gap-1.5">
+                    <span className="font-mono text-foreground/80">{col}</span>
+                    <span className="text-muted-foreground/60">{hint}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex gap-2">
+              <Button variant="outline" className="text-[12px] h-8 px-4 cursor-pointer" onClick={downloadTemplate}>
                 Download template
               </Button>
               <Button
                 variant="outline"
-                className="flex-1 text-[12px]"
+                className="text-[12px] h-8 px-4 cursor-pointer"
                 onClick={() => fileRef.current?.click()}
               >
-                Choose CSV file
+                Choose file…
               </Button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".csv,text/csv"
-                className="hidden"
-                onChange={handleFileChange}
-              />
+              <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleFileChange} />
             </div>
 
             {importError && (
               <p className="text-[12px] text-destructive">{importError}</p>
             )}
 
-            {importPreview.length > 0 && (
-              <div>
-                <p className="text-[12px] text-muted-foreground mb-2">
-                  {importPreview.length} run{importPreview.length !== 1 ? "s" : ""} found — preview:
-                </p>
-                <div className="max-h-48 overflow-y-auto space-y-1">
-                  {importPreview.slice(0, 10).map((r, i) => (
-                    <div key={i} className="flex items-baseline gap-3 text-[12px] py-1 border-b border-border last:border-0">
-                      <span className="flex-1 truncate">{r.name}</span>
-                      <span className="font-mono tabular-nums text-muted-foreground">{r.distanceKm} km</span>
-                      <span className="font-mono tabular-nums text-muted-foreground">{formatDuration(r.durationSeconds)}</span>
-                      <span className="font-mono tabular-nums text-muted-foreground">{r.date}</span>
-                    </div>
-                  ))}
-                  {importPreview.length > 10 && (
-                    <p className="text-[11px] text-muted-foreground text-center py-1">
-                      +{importPreview.length - 10} more
-                    </p>
-                  )}
+            {/* Preview */}
+            {importPreview.length > 0 && (() => {
+              const runsCount = importPreview.filter((r) => r.category === "run").length;
+              const eventsCount = importPreview.filter((r) => r.category === "event").length;
+              return (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3 text-[12px]">
+                    <span className="text-muted-foreground">Found:</span>
+                    {runsCount > 0 && <span>{runsCount} run{runsCount !== 1 ? "s" : ""}</span>}
+                    {eventsCount > 0 && <span>{eventsCount} completed event{eventsCount !== 1 ? "s" : ""}</span>}
+                  </div>
+                  <div className="max-h-52 overflow-y-auto rounded-lg border border-border divide-y divide-border">
+                    {importPreview.slice(0, 12).map((r, i) => (
+                      <div key={i} className="flex items-center gap-3 px-3 py-2 text-[12px]">
+                        <span className="flex-1 truncate">{r.name}</span>
+                        <span className="font-mono tabular-nums text-muted-foreground text-[11px]">{r.distanceKm} km</span>
+                        <span className="font-mono tabular-nums text-muted-foreground text-[11px]">{formatDuration(r.durationSeconds)}</span>
+                        <span className="font-mono tabular-nums text-muted-foreground text-[11px] w-20 text-right">{r.date}</span>
+                        <span className={`text-[10px] uppercase px-1.5 py-0.5 rounded font-medium ${
+                          r.category === "event"
+                            ? "bg-white/10 text-foreground/70"
+                            : "bg-white/5 text-muted-foreground"
+                        }`}>
+                          {r.category === "event" ? `${r.type}` : "run"}
+                        </span>
+                      </div>
+                    ))}
+                    {importPreview.length > 12 && (
+                      <div className="px-3 py-2 text-[11px] text-muted-foreground text-center">
+                        +{importPreview.length - 12} more rows
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setImportOpen(false)}>Cancel</Button>
-            <Button
-              onClick={handleImport}
-              disabled={importPreview.length === 0}
-            >
-              Import {importPreview.length > 0 ? `${importPreview.length} runs` : ""}
+            <Button variant="outline" onClick={() => setImportOpen(false)} className="cursor-pointer">Cancel</Button>
+            <Button onClick={handleImport} disabled={importPreview.length === 0} className="cursor-pointer">
+              {importPreview.length > 0
+                ? `Import ${importPreview.length} row${importPreview.length !== 1 ? "s" : ""}`
+                : "Import"}
             </Button>
           </DialogFooter>
         </DialogContent>

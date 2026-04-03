@@ -1,8 +1,10 @@
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { AppShell } from "@/components/layout/AppShell";
 import { RunningNav } from "@/components/layout/RunningNav";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -12,13 +14,14 @@ import {
 import {
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
 import { useRunningStore } from "@/stores/runningStore";
-import { formatDate, formatDuration, formatPace, getMonthKey, getWeekStart } from "@/lib/utils";
+import { formatDate, formatDuration, formatPace, getMonthKey, getWeekStart, parseDuration } from "@/lib/utils";
 import { toPng } from "html-to-image";
 import { toast } from "sonner";
 
@@ -41,7 +44,7 @@ const THEMES = {
     muted: "rgba(255,255,255,0.45)",
     divider: "rgba(255,255,255,0.08)",
     barActive: "rgba(255,255,255,0.75)",
-    barEmpty: "rgba(255,255,255,0.07)",
+    barEmpty: "rgba(255,255,255,0.14)",
     label: "rgba(255,255,255,0.35)",
   },
   light: {
@@ -50,10 +53,12 @@ const THEMES = {
     muted: "rgba(0,0,0,0.45)",
     divider: "rgba(0,0,0,0.08)",
     barActive: "rgba(0,0,0,0.7)",
-    barEmpty: "rgba(0,0,0,0.07)",
+    barEmpty: "rgba(0,0,0,0.13)",
     label: "rgba(0,0,0,0.35)",
   },
 };
+
+const EMPTY_LOG = { name: "", date: new Date().toISOString().split("T")[0], distanceKm: "", duration: "" };
 
 export default function RunningOverviewPage() {
   const getAllActivities = useRunningStore((s) => s.getAllActivities);
@@ -65,6 +70,7 @@ export default function RunningOverviewPage() {
   const getWeeklyData = useRunningStore((s) => s.getWeeklyData);
   const getMonthlyData = useRunningStore((s) => s.getMonthlyData);
   const events = useRunningStore((s) => s.events);
+  const addRun = useRunningStore((s) => s.addRun);
 
   const now = new Date();
   const monthKey = getMonthKey();
@@ -91,6 +97,15 @@ export default function RunningOverviewPage() {
   const weeklyData = getWeeklyData(12);
   const monthlyData = getMonthlyData(12);
 
+  // This month — daily km (all days, including future as placeholder)
+  const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const monthDailyData = Array.from({ length: daysInCurrentMonth }, (_, i) => {
+    const d = i + 1;
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const km = activities.filter((a) => a.date === dateStr).reduce((s, a) => s + a.distanceKm, 0);
+    return { day: d, km: Math.round(km * 10) / 10, future: d > now.getDate() };
+  });
+
   const upcoming = events
     .filter((e) => e.status === "upcoming")
     .sort((a, b) => a.date.localeCompare(b.date))
@@ -98,7 +113,7 @@ export default function RunningOverviewPage() {
 
   const recentActivities = [...activities]
     .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 7);
+    .slice(0, 5);
 
   // Previous week
   const prevWeekStart = new Date(weekStart);
@@ -115,6 +130,24 @@ export default function RunningOverviewPage() {
   const prevMonthKey = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, "0")}`;
   const prevMonthActivities = activities.filter((a) => a.date.startsWith(prevMonthKey));
   const prevMonthKm = Math.round(prevMonthActivities.reduce((s, a) => s + a.distanceKm, 0) * 10) / 10;
+
+  // Log run modal state
+  const [logOpen, setLogOpen] = useState(false);
+  const [logForm, setLogForm] = useState(EMPTY_LOG);
+
+  function handleLogRun(e: React.FormEvent) {
+    e.preventDefault();
+    const dist = parseFloat(logForm.distanceKm);
+    if (!logForm.name.trim() || isNaN(dist) || dist <= 0) {
+      toast.error("Name and distance are required");
+      return;
+    }
+    const secs = logForm.duration ? (parseDuration(logForm.duration) ?? 0) : 0;
+    addRun({ name: logForm.name.trim(), date: logForm.date, distanceKm: dist, durationSeconds: secs });
+    toast.success("Run logged");
+    setLogOpen(false);
+    setLogForm(EMPTY_LOG);
+  }
 
   // Summary modal state
   const [summaryOpen, setSummaryOpen] = useState(false);
@@ -193,6 +226,13 @@ export default function RunningOverviewPage() {
           <Button
             variant="outline"
             className="text-[12px] h-7 px-3 cursor-pointer"
+            onClick={() => { setLogForm(EMPTY_LOG); setLogOpen(true); }}
+          >
+            Log run
+          </Button>
+          <Button
+            variant="outline"
+            className="text-[12px] h-7 px-3 cursor-pointer"
             onClick={() => { setSummaryType("week"); setSummaryOpen(true); }}
           >
             Week summary
@@ -248,14 +288,37 @@ export default function RunningOverviewPage() {
           <div className="grid grid-cols-2 gap-8">
             <div>
               <span className="text-[12px] text-muted-foreground uppercase tracking-[0.06em] mb-3 block">
-                Weekly km — last 12 weeks
+                {now.toLocaleDateString("en-US", { month: "long", year: "numeric" })} — daily km
               </span>
               <ResponsiveContainer width="100%" height={120}>
-                <BarChart data={weeklyData} barGap={1}>
-                  <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5a5a5a" }} axisLine={false} tickLine={false} interval={2} />
+                <BarChart data={monthDailyData} barGap={1} barSize={6}>
+                  <XAxis
+                    dataKey="day"
+                    tick={{ fontSize: 9, fill: "#5a5a5a" }}
+                    axisLine={false}
+                    tickLine={false}
+                    interval={4}
+                  />
                   <YAxis hide />
-                  <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${v} km`, "Distance"]} />
-                  <Bar dataKey="km" fill="rgba(255,255,255,0.45)" radius={[1, 1, 0, 0]} />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    formatter={(v, _, p) => [p.payload.future ? "upcoming" : `${v} km`, "Distance"]}
+                    labelFormatter={(label) => `Day ${label}`}
+                  />
+                  <Bar dataKey="km" radius={[1, 1, 0, 0]} minPointSize={2}>
+                    {monthDailyData.map((entry, i) => (
+                      <Cell
+                        key={i}
+                        fill={
+                          entry.future
+                            ? "rgba(255,255,255,0.06)"
+                            : entry.km > 0
+                              ? "rgba(255,255,255,0.5)"
+                              : "rgba(255,255,255,0.10)"
+                        }
+                      />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -274,51 +337,127 @@ export default function RunningOverviewPage() {
             </div>
           </div>
 
-          {/* Upcoming events */}
-          {upcoming.length > 0 && (
+          {/* Upcoming events + Recent activity — side by side */}
+          <div className="grid grid-cols-2 gap-8">
+            {/* Upcoming events */}
             <div>
               <span className="text-[12px] text-muted-foreground uppercase tracking-[0.06em] mb-3 block">
                 Upcoming events
               </span>
-              <div className="grid grid-cols-[1fr_60px_60px_80px] gap-3 px-0 py-2 text-[11px] uppercase tracking-[0.06em] text-muted-foreground border-b border-border">
-                <span>Event</span><span>Type</span><span>Distance</span><span>Date</span>
-              </div>
-              {upcoming.map((ev) => (
-                <div key={ev.id} className="grid grid-cols-[1fr_60px_60px_80px] gap-3 py-2.5 text-[13px] border-b border-border last:border-0">
-                  <span className="truncate">{ev.name}</span>
-                  <span className="text-[11px] text-muted-foreground capitalize">{ev.type ?? "road"}</span>
-                  <span className="font-mono tabular-nums text-[12px] text-muted-foreground">{ev.distanceKm > 0 ? `${ev.distanceKm} km` : "—"}</span>
-                  <span className="text-[11px] text-muted-foreground font-mono tabular-nums">{formatDate(ev.date)}</span>
-                </div>
-              ))}
+              {upcoming.length === 0 ? (
+                <p className="text-[12px] text-muted-foreground py-4">No upcoming events</p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-[1fr_50px_60px_70px] gap-2 px-0 py-2 text-[11px] uppercase tracking-[0.06em] text-muted-foreground border-b border-border">
+                    <span>Event</span><span>Type</span><span>Dist</span><span>Date</span>
+                  </div>
+                  {upcoming.map((ev) => (
+                    <div key={ev.id} className="grid grid-cols-[1fr_50px_60px_70px] gap-2 py-2.5 text-[13px] border-b border-border last:border-0">
+                      <span className="truncate">{ev.name}</span>
+                      <span className="text-[11px] text-muted-foreground capitalize">{ev.type ?? "road"}</span>
+                      <span className="font-mono tabular-nums text-[12px] text-muted-foreground">{ev.distanceKm > 0 ? `${ev.distanceKm} km` : "—"}</span>
+                      <span className="text-[11px] text-muted-foreground font-mono tabular-nums">{formatDate(ev.date)}</span>
+                    </div>
+                  ))}
+                  <Link href="/running/events" className="text-[11px] text-muted-foreground hover:text-foreground mt-3 block">
+                    View all &rarr;
+                  </Link>
+                </>
+              )}
             </div>
-          )}
 
-          {/* Recent activity */}
-          {recentActivities.length > 0 && (
+            {/* Recent activity */}
             <div>
               <span className="text-[12px] text-muted-foreground uppercase tracking-[0.06em] mb-3 block">
                 Recent activity
               </span>
-              <div className="grid grid-cols-[1fr_60px_70px_80px_80px] gap-3 px-0 py-2 text-[11px] uppercase tracking-[0.06em] text-muted-foreground border-b border-border">
-                <span>Name</span><span>Dist</span><span>Time</span><span>Pace</span><span>Date</span>
-              </div>
-              {recentActivities.map((a) => (
-                <div key={a.id} className="grid grid-cols-[1fr_60px_70px_80px_80px] gap-3 py-2.5 text-[13px] border-b border-border last:border-0">
-                  <div className="flex items-baseline gap-2 min-w-0">
-                    <span className="truncate">{a.name}</span>
-                    {a.source === "event" && <span className="text-[10px] text-muted-foreground/60 uppercase shrink-0">race</span>}
+              {recentActivities.length === 0 ? (
+                <p className="text-[12px] text-muted-foreground py-4">No activities yet</p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-[1fr_55px_65px_70px] gap-2 px-0 py-2 text-[11px] uppercase tracking-[0.06em] text-muted-foreground border-b border-border">
+                    <span>Name</span><span>Dist</span><span>Time</span><span>Date</span>
                   </div>
-                  <span className="font-mono tabular-nums text-[12px]">{a.distanceKm} km</span>
-                  <span className="font-mono tabular-nums text-[12px] text-muted-foreground">{a.durationSeconds > 0 ? formatDuration(a.durationSeconds) : "—"}</span>
-                  <span className="font-mono tabular-nums text-[12px] text-muted-foreground">{a.durationSeconds > 0 ? formatPace(a.durationSeconds, a.distanceKm) : "—"}</span>
-                  <span className="text-[11px] text-muted-foreground font-mono tabular-nums">{formatDate(a.date)}</span>
-                </div>
-              ))}
+                  {recentActivities.map((a) => (
+                    <div key={a.id} className="grid grid-cols-[1fr_55px_65px_70px] gap-2 py-2.5 text-[13px] border-b border-border last:border-0">
+                      <div className="flex items-baseline gap-1.5 min-w-0">
+                        <span className="truncate">{a.name}</span>
+                        {a.source === "event" && <span className="text-[10px] text-muted-foreground/60 uppercase shrink-0">race</span>}
+                      </div>
+                      <span className="font-mono tabular-nums text-[12px]">{a.distanceKm} km</span>
+                      <span className="font-mono tabular-nums text-[12px] text-muted-foreground">{a.durationSeconds > 0 ? formatDuration(a.durationSeconds) : "—"}</span>
+                      <span className="text-[11px] text-muted-foreground font-mono tabular-nums">{formatDate(a.date)}</span>
+                    </div>
+                  ))}
+                  <Link href="/running" className="text-[11px] text-muted-foreground hover:text-foreground mt-3 block">
+                    View all &rarr;
+                  </Link>
+                </>
+              )}
             </div>
-          )}
+          </div>
         </div>
       )}
+
+      {/* Log Run Dialog */}
+      <Dialog open={logOpen} onOpenChange={setLogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-[14px] font-medium">Log run</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleLogRun} className="space-y-4 pt-1">
+            <div className="space-y-1.5">
+              <label className="text-[12px] text-muted-foreground block">Name</label>
+              <Input
+                className="h-8 text-[13px]"
+                placeholder="Morning run"
+                value={logForm.name}
+                onChange={(e) => setLogForm((f) => ({ ...f, name: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-[12px] text-muted-foreground block">Distance (km)</label>
+                <Input
+                  className="h-8 text-[13px]"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="10"
+                  value={logForm.distanceKm}
+                  onChange={(e) => setLogForm((f) => ({ ...f, distanceKm: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[12px] text-muted-foreground block">Duration</label>
+                <Input
+                  className="h-8 text-[13px]"
+                  placeholder="55:30 or 1:05:00"
+                  value={logForm.duration}
+                  onChange={(e) => setLogForm((f) => ({ ...f, duration: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[12px] text-muted-foreground block">Date</label>
+              <Input
+                className="h-8 text-[13px]"
+                type="date"
+                value={logForm.date}
+                onChange={(e) => setLogForm((f) => ({ ...f, date: e.target.value }))}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button type="button" variant="outline" className="h-8 px-4 text-[12px] cursor-pointer" onClick={() => setLogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" className="h-8 px-4 text-[12px] cursor-pointer">
+                Log run
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Summary Dialog */}
       <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
@@ -472,7 +611,7 @@ export default function RunningOverviewPage() {
                         <div
                           style={{
                             width: "100%",
-                            height: bar.km > 0 ? `${Math.max((bar.km / maxBarKm) * 100, 5)}%` : "2px",
+                            height: bar.km > 0 ? `${Math.max((bar.km / maxBarKm) * 100, 8)}%` : "5px",
                             backgroundColor: bar.km > 0 ? t.barActive : t.barEmpty,
                             borderRadius: "1px 1px 0 0",
                           }}
