@@ -348,17 +348,24 @@ export default function RunningOverviewPage() {
                 <p className="text-[12px] text-muted-foreground py-4">No upcoming events</p>
               ) : (
                 <>
-                  <div className="grid grid-cols-[1fr_50px_60px_70px] gap-2 px-0 py-2 text-[11px] uppercase tracking-[0.06em] text-muted-foreground border-b border-border">
-                    <span>Event</span><span>Type</span><span>Dist</span><span>Date</span>
+                  <div className="grid grid-cols-[60px_1fr_55px_55px] gap-2 px-0 py-2 text-[11px] uppercase tracking-[0.06em] text-muted-foreground border-b border-border">
+                    <span>Date</span><span>Event</span><span>Dist</span><span className="text-right">Days</span>
                   </div>
-                  {upcoming.map((ev) => (
-                    <div key={ev.id} className="grid grid-cols-[1fr_50px_60px_70px] gap-2 py-2.5 text-[13px] border-b border-border last:border-0">
-                      <span className="truncate">{ev.name}</span>
-                      <span className="text-[11px] text-muted-foreground capitalize">{ev.type ?? "road"}</span>
-                      <span className="font-mono tabular-nums text-[12px] text-muted-foreground">{ev.distanceKm > 0 ? `${ev.distanceKm} km` : "—"}</span>
-                      <span className="text-[11px] text-muted-foreground font-mono tabular-nums">{formatDate(ev.date)}</span>
-                    </div>
-                  ))}
+                  {upcoming.map((ev) => {
+                    const today = new Date().toISOString().split("T")[0];
+                    const daysLeft = Math.ceil((new Date(ev.date).getTime() - new Date(today).getTime()) / 86400000);
+                    const dLabel = daysLeft === 0 ? "D-Day" : daysLeft > 0 ? `D-${daysLeft}` : `+${Math.abs(daysLeft)}`;
+                    return (
+                      <div key={ev.id} className="grid grid-cols-[60px_1fr_55px_55px] gap-2 py-2.5 text-[13px] border-b border-border last:border-0">
+                        <span className="text-[11px] text-muted-foreground font-mono tabular-nums">{formatDate(ev.date)}</span>
+                        <span className="truncate">{ev.name}</span>
+                        <span className="font-mono tabular-nums text-[12px] text-muted-foreground">{ev.distanceKm > 0 ? `${ev.distanceKm} km` : "—"}</span>
+                        <span className={`font-mono tabular-nums text-[11px] text-right ${daysLeft === 0 ? "text-foreground font-semibold" : daysLeft <= 14 ? "text-amber-400/80" : "text-muted-foreground"}`}>
+                          {dLabel}
+                        </span>
+                      </div>
+                    );
+                  })}
                   <Link href="/running/events" className="text-[11px] text-muted-foreground hover:text-foreground mt-3 block">
                     View all &rarr;
                   </Link>

@@ -124,19 +124,27 @@ export function RecentRuns() {
           <div className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground mb-2">
             Upcoming events
           </div>
-          {upcoming.map((ev) => (
-            <div key={ev.id} className="flex items-baseline gap-3 py-1.5">
-              <span className="text-[11px] text-muted-foreground font-mono tabular-nums w-16 shrink-0">
-                {formatDate(ev.date)}
-              </span>
-              <span className="text-[13px] text-foreground flex-1 truncate">{ev.name}</span>
-              {ev.distanceKm > 0 && (
-                <span className="text-[11px] text-muted-foreground font-mono tabular-nums shrink-0">
-                  {ev.distanceKm} km
+          {upcoming.map((ev) => {
+            const today = new Date().toISOString().split("T")[0];
+            const daysLeft = Math.ceil((new Date(ev.date).getTime() - new Date(today).getTime()) / 86400000);
+            const dLabel = daysLeft === 0 ? "D-Day" : daysLeft > 0 ? `D-${daysLeft}` : `+${Math.abs(daysLeft)}`;
+            return (
+              <div key={ev.id} className="flex items-baseline gap-3 py-1.5">
+                <span className="text-[11px] text-muted-foreground font-mono tabular-nums w-16 shrink-0">
+                  {formatDate(ev.date)}
                 </span>
-              )}
-            </div>
-          ))}
+                <span className="text-[13px] text-foreground flex-1 truncate">{ev.name}</span>
+                {ev.distanceKm > 0 && (
+                  <span className="text-[11px] text-muted-foreground font-mono tabular-nums shrink-0">
+                    {ev.distanceKm} km
+                  </span>
+                )}
+                <span className={`text-[11px] font-mono tabular-nums shrink-0 ${daysLeft === 0 ? "text-foreground font-semibold" : daysLeft <= 14 ? "text-amber-400/80" : "text-muted-foreground"}`}>
+                  {dLabel}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
 
