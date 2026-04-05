@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useProjectStore } from "@/stores/projectStore";
 import { useFinanceStore } from "@/stores/financeStore";
 import { useCurrencyStore } from "@/stores/currencyStore";
+import type { Issue } from "@/lib/types";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -25,6 +26,8 @@ export default function ProjectDetailPage() {
   const allClients = useProjectStore((s) => s.clients);
   const allIssues = useProjectStore((s) => s.issues);
   const addIssue = useProjectStore((s) => s.addIssue);
+  const updateIssue = useProjectStore((s) => s.updateIssue);
+  const deleteIssue = useProjectStore((s) => s.deleteIssue);
   const invoices = useFinanceStore((s) => s.invoices);
   const convert = useCurrencyStore((s) => s.convert);
 
@@ -42,14 +45,32 @@ export default function ProjectDetailPage() {
   );
 
   const [viewMode, setViewMode] = useState<ViewMode>("table");
+
+  // Add issue
   const [openDialog, setOpenDialog] = useState(false);
   const [issueForm, setIssueForm] = useState({
     title: "",
     description: "",
-    priority: "medium" as "low" | "medium" | "high",
+    priority: "medium" as Issue["priority"],
     deadline: "",
-    reportedBy: "self" as "client" | "self",
+    reportedBy: "self" as Issue["reportedBy"],
   });
+
+  // Edit issue
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    title: "",
+    description: "",
+    priority: "medium" as Issue["priority"],
+    status: "todo" as Issue["status"],
+    deadline: "",
+    reportedBy: "self" as Issue["reportedBy"],
+  });
+
+  // Delete issue
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   if (!project) {
     return (
@@ -62,7 +83,6 @@ export default function ProjectDetailPage() {
   const openIssues = issues.filter((i) => i.status !== "done").length;
   const doneIssues = issues.filter((i) => i.status === "done").length;
 
-  // Total invoiced (paid invoices linked to this project)
   const totalInvoiced = useMemo(() => {
     if (!project) return 0;
     return invoices
@@ -87,6 +107,45 @@ export default function ProjectDetailPage() {
     toast.success("Issue created");
     setIssueForm({ title: "", description: "", priority: "medium", deadline: "", reportedBy: "self" });
     setOpenDialog(false);
+  }
+
+  function openEditIssue(issue: Issue) {
+    setEditId(issue.id);
+    setEditForm({
+      title: issue.title,
+      description: issue.description,
+      priority: issue.priority,
+      status: issue.status,
+      deadline: issue.deadline || "",
+      reportedBy: issue.reportedBy,
+    });
+    setEditOpen(true);
+  }
+
+  function handleEditIssue() {
+    if (!editId || !editForm.title.trim()) return;
+    updateIssue(editId, {
+      title: editForm.title.trim(),
+      description: editForm.description,
+      priority: editForm.priority,
+      status: editForm.status,
+      deadline: editForm.deadline || null,
+      reportedBy: editForm.reportedBy,
+    });
+    toast.success("Issue updated");
+    setEditOpen(false);
+  }
+
+  function confirmDeleteIssue(id: string) {
+    setDeleteId(id);
+    setDeleteOpen(true);
+  }
+
+  function handleDeleteIssue() {
+    if (!deleteId) return;
+    deleteIssue(deleteId);
+    toast.success("Issue deleted");
+    setDeleteOpen(false);
   }
 
   return (
@@ -153,9 +212,9 @@ export default function ProjectDetailPage() {
       </div>
 
       {viewMode === "table" ? (
-        <IssueTable issues={issues} />
+        <IssueTable issues={issues} onEdit={openEditIssue} onDelete={confirmDeleteIssue} />
       ) : (
-        <IssueKanban issues={issues} />
+        <IssueKanban issues={issues} onEdit={openEditIssue} onDelete={confirmDeleteIssue} />
       )}
 
       <AppDialog title="New issue" open={openDialog} onOpenChange={setOpenDialog}
@@ -163,7 +222,7 @@ export default function ProjectDetailPage() {
       >
         <Input placeholder="Title" value={issueForm.title} onChange={(e) => setIssueForm((f) => ({ ...f, title: e.target.value }))} />
         <Input placeholder="Description (optional)" value={issueForm.description} onChange={(e) => setIssueForm((f) => ({ ...f, description: e.target.value }))} />
-        <Select value={issueForm.priority} onValueChange={(v) => setIssueForm((f) => ({ ...f, priority: (v ?? "medium") as "low" | "medium" | "high" }))}>
+        <Select value={issueForm.priority} onValueChange={(v) => setIssueForm((f) => ({ ...f, priority: (v ?? "medium") as Issue["priority"] }))}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="low">Low</SelectItem>
@@ -172,13 +231,55 @@ export default function ProjectDetailPage() {
           </SelectContent>
         </Select>
         <DatePicker value={issueForm.deadline} onChange={(v) => setIssueForm((f) => ({ ...f, deadline: v }))} placeholder="Deadline (optional)" />
-        <Select value={issueForm.reportedBy} onValueChange={(v) => setIssueForm((f) => ({ ...f, reportedBy: (v ?? "self") as "client" | "self" }))}>
+        <Select value={issueForm.reportedBy} onValueChange={(v) => setIssueForm((f) => ({ ...f, reportedBy: (v ?? "self") as Issue["reportedBy"] }))}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="self">Self</SelectItem>
             <SelectItem value="client">Client</SelectItem>
           </SelectContent>
         </Select>
+      </AppDialog>
+
+      <AppDialog title="Edit issue" open={editOpen} onOpenChange={setEditOpen}
+        footer={<Button onClick={handleEditIssue}>Save</Button>}
+      >
+        <Input placeholder="Title" value={editForm.title} onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))} />
+        <Input placeholder="Description (optional)" value={editForm.description} onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))} />
+        <Select value={editForm.priority} onValueChange={(v) => setEditForm((f) => ({ ...f, priority: (v ?? "medium") as Issue["priority"] }))}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="low">Low</SelectItem>
+            <SelectItem value="medium">Medium</SelectItem>
+            <SelectItem value="high">High</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={editForm.status} onValueChange={(v) => setEditForm((f) => ({ ...f, status: (v ?? "todo") as Issue["status"] }))}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todo">Todo</SelectItem>
+            <SelectItem value="in-progress">In Progress</SelectItem>
+            <SelectItem value="done">Done</SelectItem>
+          </SelectContent>
+        </Select>
+        <DatePicker value={editForm.deadline} onChange={(v) => setEditForm((f) => ({ ...f, deadline: v }))} placeholder="Deadline (optional)" />
+        <Select value={editForm.reportedBy} onValueChange={(v) => setEditForm((f) => ({ ...f, reportedBy: (v ?? "self") as Issue["reportedBy"] }))}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="self">Self</SelectItem>
+            <SelectItem value="client">Client</SelectItem>
+          </SelectContent>
+        </Select>
+      </AppDialog>
+
+      <AppDialog title="Delete issue?" open={deleteOpen} onOpenChange={setDeleteOpen}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
+            <Button onClick={handleDeleteIssue} className="bg-destructive! text-destructive-foreground! border-destructive!">Delete</Button>
+          </>
+        }
+      >
+        <p className="text-[13px] text-muted-foreground">This will permanently delete the issue and cannot be undone.</p>
       </AppDialog>
     </AppShell>
   );

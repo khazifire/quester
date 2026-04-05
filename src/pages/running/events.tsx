@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -288,10 +289,9 @@ export default function EventsPage() {
           onChange={(e) => setAddForm((f) => ({ ...f, location: e.target.value }))}
         />
         <div className="flex gap-2">
-          <Input
-            type="date"
+          <DatePicker
             value={addForm.date}
-            onChange={(e) => setAddForm((f) => ({ ...f, date: e.target.value }))}
+            onChange={(v) => setAddForm((f) => ({ ...f, date: v }))}
             className="flex-1"
           />
           <Select
@@ -365,10 +365,9 @@ export default function EventsPage() {
           onChange={(e) => setEditForm((f) => ({ ...f, location: e.target.value }))}
         />
         <div className="flex gap-2">
-          <Input
-            type="date"
+          <DatePicker
             value={editForm.date}
-            onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))}
+            onChange={(v) => setEditForm((f) => ({ ...f, date: v }))}
             className="flex-1"
           />
           <Select

@@ -12,6 +12,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -379,11 +380,7 @@ export default function RunLogPage() {
           value={addForm.name}
           onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
         />
-        <Input
-          type="date"
-          value={addForm.date}
-          onChange={(e) => setAddForm((f) => ({ ...f, date: e.target.value }))}
-        />
+        <DatePicker value={addForm.date} onChange={(v) => setAddForm((f) => ({ ...f, date: v }))} />
         <div className="flex gap-2">
           <Input
             placeholder="Distance (km)"
@@ -411,11 +408,7 @@ export default function RunLogPage() {
           value={editForm.name}
           onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
         />
-        <Input
-          type="date"
-          value={editForm.date}
-          onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))}
-        />
+        <DatePicker value={editForm.date} onChange={(v) => setEditForm((f) => ({ ...f, date: v }))} />
         <div className="flex gap-2">
           <Input
             placeholder="Distance (km)"

@@ -5,6 +5,7 @@ import { RunningNav } from "@/components/layout/RunningNav";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -447,12 +448,7 @@ export default function RunningOverviewPage() {
             </div>
             <div className="space-y-1.5">
               <label className="text-[12px] text-muted-foreground block">Date</label>
-              <Input
-                className="h-8 text-[13px]"
-                type="date"
-                value={logForm.date}
-                onChange={(e) => setLogForm((f) => ({ ...f, date: e.target.value }))}
-              />
+              <DatePicker value={logForm.date} onChange={(v) => setLogForm((f) => ({ ...f, date: v }))} />
             </div>
             <div className="flex justify-end gap-2 pt-1">
               <Button type="button" variant="outline" className="h-8 px-4 text-[12px] cursor-pointer" onClick={() => setLogOpen(false)}>

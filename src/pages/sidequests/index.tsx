@@ -5,7 +5,7 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useCurrencyStore } from "@/stores/currencyStore";
 import { MaskedAmount } from "@/components/shared/MaskedAmount";
 import { Button } from "@/components/ui/button";
-import { AppDialog, Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AppDialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
@@ -315,89 +315,89 @@ export default function SideQuestsPage() {
         <p className="text-[13px] text-muted-foreground">This will permanently delete the project and cannot be undone.</p>
       </AppDialog>
 
-      <Dialog open={clientsOpen} onOpenChange={setClientsOpen}>
-        <DialogContent showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>Clients</DialogTitle>
-          </DialogHeader>
-          <div className="pt-1">
-            <div className="grid grid-cols-[1fr_70px_80px] gap-3 px-1 pb-2 text-[10px] uppercase tracking-[0.06em] text-muted-foreground border-b border-border">
-              <span>Name</span>
-              <span className="text-right">Projects</span>
-              <span className="text-right">Actions</span>
-            </div>
-
-            {clients.length === 0 && (
-              <p className="text-[12px] text-muted-foreground text-center py-6">No clients yet</p>
-            )}
-            {clients.map((c) => {
-              const projectCount = projects.filter((p) => p.clientId === c.id).length;
-              return (
-                <div key={c.id} className="grid grid-cols-[1fr_70px_80px] gap-3 items-center px-1 py-2.5 border-b border-border last:border-0">
-                  {editClientId === c.id ? (
-                    <>
-                      <Input
-                        value={editClientName}
-                        onChange={(e) => setEditClientName(e.target.value)}
-                        className="h-7 text-[13px]"
-                        autoFocus
-                        onKeyDown={(e) => { if (e.key === "Enter") handleEditClient(); if (e.key === "Escape") setEditClientId(null); }}
-                      />
-                      <span />
-                      <span className="flex items-center justify-end gap-2">
-                        <button
-                          className="text-[11px] text-foreground cursor-pointer"
-                          onClick={handleEditClient}
-                        >
-                          [save]
-                        </button>
-                        <button
-                          className="text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
-                          onClick={() => setEditClientId(null)}
-                        >
-                          [x]
-                        </button>
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-[13px] text-foreground">{c.name}</span>
-                      <span className="text-[12px] text-muted-foreground tabular-nums text-right">
-                        {projectCount}
-                      </span>
-                      <span className="flex items-center justify-end gap-2">
-                        <button
-                          className="text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
-                          onClick={() => startEditClient(c.id)}
-                        >
-                          [edit]
-                        </button>
-                        <button
-                          className="text-[11px] text-muted-foreground hover:text-destructive cursor-pointer"
-                          onClick={() => handleDeleteClient(c.id)}
-                        >
-                          [del]
-                        </button>
-                      </span>
-                    </>
-                  )}
-                </div>
-              );
-            })}
-
-            <div className="flex gap-2 mt-4 pt-3 border-t border-border">
-              <Input
-                value={newClientName}
-                onChange={(e) => setNewClientName(e.target.value)}
-                placeholder="New client name"
-                className="flex-1"
-                onKeyDown={(e) => { if (e.key === "Enter") handleAddClient(); }}
-              />
-              <Button size="sm" onClick={handleAddClient}>Add</Button>
-            </div>
+      <AppDialog
+        title="Clients"
+        open={clientsOpen}
+        onOpenChange={setClientsOpen}
+        footer={
+          <div className="flex gap-2 w-full">
+            <Input
+              value={newClientName}
+              onChange={(e) => setNewClientName(e.target.value)}
+              placeholder="New client name"
+              className="flex-1"
+              onKeyDown={(e) => { if (e.key === "Enter") handleAddClient(); }}
+            />
+            <Button size="sm" onClick={handleAddClient}>Add</Button>
           </div>
-        </DialogContent>
-      </Dialog>
+        }
+      >
+        <div>
+          <div className="grid grid-cols-[1fr_70px_80px] gap-3 px-1 pb-2 text-[10px] uppercase tracking-[0.06em] text-muted-foreground border-b border-border">
+            <span>Name</span>
+            <span className="text-right">Projects</span>
+            <span className="text-right">Actions</span>
+          </div>
+
+          {clients.length === 0 && (
+            <p className="text-[12px] text-muted-foreground text-center py-6">No clients yet</p>
+          )}
+          {clients.map((c) => {
+            const projectCount = projects.filter((p) => p.clientId === c.id).length;
+            return (
+              <div key={c.id} className="grid grid-cols-[1fr_70px_80px] gap-3 items-center px-1 py-2.5 border-b border-border last:border-0">
+                {editClientId === c.id ? (
+                  <>
+                    <Input
+                      value={editClientName}
+                      onChange={(e) => setEditClientName(e.target.value)}
+                      className="h-7 text-[13px]"
+                      autoFocus
+                      onKeyDown={(e) => { if (e.key === "Enter") handleEditClient(); if (e.key === "Escape") setEditClientId(null); }}
+                    />
+                    <span />
+                    <span className="flex items-center justify-end gap-2">
+                      <button
+                        className="text-[11px] text-foreground cursor-pointer"
+                        onClick={handleEditClient}
+                      >
+                        [save]
+                      </button>
+                      <button
+                        className="text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
+                        onClick={() => setEditClientId(null)}
+                      >
+                        [x]
+                      </button>
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-[13px] text-foreground">{c.name}</span>
+                    <span className="text-[12px] text-muted-foreground tabular-nums text-right">
+                      {projectCount}
+                    </span>
+                    <span className="flex items-center justify-end gap-2">
+                      <button
+                        className="text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
+                        onClick={() => startEditClient(c.id)}
+                      >
+                        [edit]
+                      </button>
+                      <button
+                        className="text-[11px] text-muted-foreground hover:text-destructive cursor-pointer"
+                        onClick={() => handleDeleteClient(c.id)}
+                      >
+                        [del]
+                      </button>
+                    </span>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </AppDialog>
     </AppShell>
   );
 }
