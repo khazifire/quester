@@ -306,7 +306,7 @@ export const useFinanceStore = create<FinanceState>()(
             });
           });
 
-        // Snapshot active retainer projects
+        // Snapshot active retainer projects (marked separately — they count via invoice, not auto)
         retainerItems.forEach((p) => {
           snapshots.push({
             name: p.name,
@@ -316,6 +316,7 @@ export const useFinanceStore = create<FinanceState>()(
             recurring: false,
             date: `${monthKey}-01`,
             isSnapshot: true,
+            isRetainerSnapshot: true,
             snapshotMonth: monthKey,
             sourceId: p.id,
           });
@@ -337,6 +338,7 @@ export const useFinanceStore = create<FinanceState>()(
         const convert = useCurrencyStore.getState().convert;
         const { invoices, incomes, materializedMonths } = get();
 
+        // Only count paid invoices (by the date payment was received)
         const invoiceTotal = invoices
           .filter((inv) => inv.status === "paid" && inv.paidDate?.startsWith(monthKey))
           .reduce((sum, inv) => sum + convert(inv.amount, inv.currency), 0);
@@ -344,9 +346,9 @@ export const useFinanceStore = create<FinanceState>()(
         const isMaterialized = materializedMonths.includes(monthKey);
 
         if (isMaterialized) {
-          // Use snapshot records for this month
+          // Use snapshot records for this month — exclude retainer snapshots (they count via invoice)
           const snapshotTotal = incomes
-            .filter((inc) => inc.isSnapshot && inc.snapshotMonth === monthKey)
+            .filter((inc) => inc.isSnapshot && inc.snapshotMonth === monthKey && !inc.isRetainerSnapshot)
             .reduce((sum, inc) => sum + convert(inc.amount, inc.currency), 0);
           const oneTimeTotal = incomes
             .filter((inc) => !inc.isSnapshot && !inc.recurring && inc.date.startsWith(monthKey))

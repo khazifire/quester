@@ -131,6 +131,7 @@ export interface Income {
   isSnapshot?: boolean; // true = materialized monthly record, not a definition
   snapshotMonth?: string; // YYYY-MM this snapshot belongs to
   sourceId?: string; // income entry or project id that spawned this snapshot
+  isRetainerSnapshot?: boolean; // true = snapshot from a retainer project (counts via invoice, not auto)
   createdAt: number;
 }
 

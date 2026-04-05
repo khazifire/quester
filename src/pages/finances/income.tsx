@@ -50,6 +50,7 @@ const EMPTY_FORM = {
 
 export default function IncomePage() {
   const incomes = useFinanceStore((s) => s.incomes);
+  const invoices = useFinanceStore((s) => s.invoices);
   const addIncome = useFinanceStore((s) => s.addIncome);
   const updateIncome = useFinanceStore((s) => s.updateIncome);
   const deleteIncome = useFinanceStore((s) => s.deleteIncome);
@@ -66,7 +67,7 @@ export default function IncomePage() {
   const now = new Date();
 
   const retainerProjects = projects.filter(
-    (p) => p.billingType === "retainer" && p.status === "active"
+    (p) => p.billingType === "retainer" && p.status !== "completed" && p.status !== "paused"
   );
   const retainerMonthly = retainerProjects.reduce(
     (sum, p) => sum + convert(p.amount, p.currency),
@@ -77,15 +78,16 @@ export default function IncomePage() {
   const recurringFromIncomes = incomes
     .filter((i) => i.recurring && (!i.endDate || i.endDate >= monthKey))
     .reduce((sum, i) => sum + convert(i.amount, i.currency), 0);
+  // Recurring / mo shows expected retainer income + salary/passive (for planning purposes)
   const totalRecurring = retainerMonthly + recurringFromIncomes;
-  const totalThisMonth = breakdown.invoices + breakdown.recurring + breakdown.oneTime + retainerMonthly;
+  // This month actual = invoices (draft+sent+paid issued this month) + salary/passive + one-time
+  const totalThisMonth = breakdown.invoices + breakdown.recurring + breakdown.oneTime;
 
   const ytd = Array.from({ length: now.getMonth() + 1 }, (_, i) => {
     const d = new Date(now.getFullYear(), i, 1);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     const b = getMonthlyIncomeBreakdown(key);
-    const ret = retainerProjects.reduce((sum, p) => sum + convert(p.amount, p.currency), 0);
-    return b.invoices + b.recurring + b.oneTime + ret;
+    return b.invoices + b.recurring + b.oneTime;
   }).reduce((s, v) => s + v, 0);
 
   // Add dialog
@@ -208,7 +210,7 @@ export default function IncomePage() {
     .sort((a, b) => b.endDate!.localeCompare(a.endDate!));
 
   const oneTimeIncomes = incomes
-    .filter((i) => !i.recurring && i.date.startsWith(monthKey))
+    .filter((i) => !i.recurring && !i.isSnapshot && i.date.startsWith(monthKey))
     .sort((a, b) => b.date.localeCompare(a.date));
 
   return (
@@ -224,8 +226,8 @@ export default function IncomePage() {
 
       <div className="space-y-8">
         <div className="grid grid-cols-4 gap-6 pb-5 border-b border-border">
-          <MetricCard label="This month" value={<MaskedAmount value={Math.round(totalThisMonth)} />} subtitle="total income" />
-          <MetricCard label="Recurring / mo" value={<MaskedAmount value={Math.round(totalRecurring)} />} subtitle="salary, retainers & passive" />
+          <MetricCard label="Expected" value={<MaskedAmount value={Math.round(totalRecurring)} />} subtitle="salary & retainers / mo" />
+          <MetricCard label="Received" value={<MaskedAmount value={Math.round(totalThisMonth)} />} subtitle="added to income this month" />
           <MetricCard label="Invoiced" value={<MaskedAmount value={Math.round(breakdown.invoices)} />} subtitle="paid invoices" />
           <MetricCard label="Year to date" value={<MaskedAmount value={Math.round(ytd)} />} subtitle={`Jan – ${now.toLocaleDateString("en-US", { month: "short" })}`} />
         </div>
@@ -242,6 +244,11 @@ export default function IncomePage() {
               </div>
               {retainerProjects.map((p) => {
                 const client = clients.find((c) => c.id === p.clientId);
+                const monthInvoice = invoices.find((inv) => {
+                  const pids = inv.projectIds?.length ? inv.projectIds : inv.projectId ? [inv.projectId] : [];
+                  return pids.includes(p.id) && inv.issuedDate?.startsWith(monthKey);
+                });
+                const invoiceStatus = monthInvoice?.status ?? "pending";
                 return (
                   <div key={p.id} className="grid grid-cols-[1fr_70px_90px_90px_90px] gap-3 py-2.5 text-[13px] border-b border-border last:border-0 group">
                     <div className="flex items-baseline gap-2 min-w-0">
@@ -250,9 +257,13 @@ export default function IncomePage() {
                     </div>
                     <span className="text-[11px] text-muted-foreground">Retainer</span>
                     <span className="text-right font-mono tabular-nums text-[12px]"><MaskedAmount value={p.amount} currency={p.currency} /></span>
-                    <span className="text-[11px] text-muted-foreground">—</span>
+                    <span className={`text-[11px] font-mono ${
+                      invoiceStatus === "paid" ? "text-foreground/50" :
+                      invoiceStatus === "pending" ? "text-muted-foreground/40 italic" :
+                      "text-muted-foreground"
+                    }`}>{invoiceStatus}</span>
                     <span className="hidden group-hover:flex justify-end">
-                      <Link href="/sidequests" className="text-[11px] text-muted-foreground hover:text-foreground">manage →</Link>
+                      <Link href="/finances/invoices" className="text-[11px] text-muted-foreground hover:text-foreground">invoice →</Link>
                     </span>
                   </div>
                 );

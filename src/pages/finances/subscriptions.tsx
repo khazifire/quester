@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/select";
 import { useFinanceStore } from "@/stores/financeStore";
 import { useCurrencyStore } from "@/stores/currencyStore";
+import { useAdvanceSubscriptions } from "@/hooks/useAdvanceSubscriptions";
+import { DatePicker } from "@/components/ui/date-picker";
 import { formatDate, getToday } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -23,11 +25,12 @@ export default function SubscriptionsPage() {
   const addSubscription = useFinanceStore((s) => s.addSubscription);
   const updateSubscription = useFinanceStore((s) => s.updateSubscription);
   const deleteSubscription = useFinanceStore((s) => s.deleteSubscription);
+  useAdvanceSubscriptions();
+
   const getCategoryById = (id: string) => categories.find((c) => c.id === id);
   const convert = useCurrencyStore((s) => s.convert);
-  const subTotal = subscriptions
-    .filter((s) => s.active)
-    .reduce((sum, s) => sum + convert(s.amount, s.currency), 0);
+  const activeSubscriptions = subscriptions.filter((s) => s.active);
+  const subTotal = activeSubscriptions.reduce((sum, s) => sum + convert(s.amount, s.currency), 0);
   const wallets = useCurrencyStore((s) => s.wallets);
   const mainCurrency = useCurrencyStore((s) => s.mainCurrency);
 
@@ -39,6 +42,7 @@ export default function SubscriptionsPage() {
     categoryId: "",
     cycle: "monthly" as "monthly" | "yearly",
     currency: mainCurrency,
+    nextDate: getToday(),
   });
 
   function handleCreate() {
@@ -48,12 +52,12 @@ export default function SubscriptionsPage() {
       amount: Number(form.amount),
       categoryId: form.categoryId,
       cycle: form.cycle,
-      nextDate: getToday(),
+      nextDate: form.nextDate || getToday(),
       active: true,
       currency: form.currency,
     });
     toast.success("Subscription added");
-    setForm({ name: "", amount: "", categoryId: "", cycle: "monthly", currency: mainCurrency });
+    setForm({ name: "", amount: "", categoryId: "", cycle: "monthly", currency: mainCurrency, nextDate: getToday() });
     setOpen(false);
   }
 
@@ -67,6 +71,7 @@ export default function SubscriptionsPage() {
     cycle: "monthly" as "monthly" | "yearly",
     currency: mainCurrency,
     active: true,
+    nextDate: getToday(),
   });
 
   function openEdit(id: string) {
@@ -80,6 +85,7 @@ export default function SubscriptionsPage() {
       cycle: s.cycle,
       currency: s.currency || mainCurrency,
       active: s.active,
+      nextDate: s.nextDate,
     });
     setEditOpen(true);
   }
@@ -93,6 +99,7 @@ export default function SubscriptionsPage() {
       cycle: editForm.cycle,
       currency: editForm.currency,
       active: editForm.active,
+      nextDate: editForm.nextDate,
     });
     toast.success("Subscription updated");
     setEditOpen(false);
@@ -118,13 +125,24 @@ export default function SubscriptionsPage() {
     <AppShell title="Finances" actions={<Button size="sm" onClick={() => setOpen(true)}>+ Add</Button>}>
       <FinanceNav />
 
-      <div className="flex justify-between items-baseline mb-4">
-        <span className="text-[12px] text-muted-foreground uppercase tracking-[0.06em]">
-          Subscriptions
-        </span>
-        <span className="text-[14px] font-mono tabular-nums">
-          <MaskedAmount value={Math.round(subTotal)} />/mo
-        </span>
+      <div className="grid grid-cols-3 gap-6 pb-4 mb-4 border-b border-border">
+        <div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-[0.06em] mb-1">Annual cost</div>
+          <div className="text-[18px] font-medium tabular-nums"><MaskedAmount value={Math.round(subTotal * 12)} />/yr</div>
+        </div>
+        <div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-[0.06em] mb-1">Monthly cost</div>
+          <div className="text-[18px] font-medium tabular-nums"><MaskedAmount value={Math.round(subTotal)} />/mo</div>
+        </div>
+        <div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-[0.06em] mb-1">Subscriptions</div>
+          <div className="text-[18px] font-medium tabular-nums">{subscriptions.length}</div>
+          <div className="text-[9px] text-muted-foreground mt-0.5">{activeSubscriptions.length} active</div>
+        </div>
+      </div>
+
+      <div className="mb-3">
+        <span className="text-[12px] text-muted-foreground uppercase tracking-[0.06em]">Subscriptions</span>
       </div>
 
       <div className="grid grid-cols-[1fr_100px_80px_50px_80px_70px] gap-3 py-2.5 text-[11px] uppercase tracking-[0.06em] text-muted-foreground border-b border-border">
@@ -172,15 +190,35 @@ export default function SubscriptionsPage() {
         );
       })}
 
-      <div className="mt-6 pt-4 border-t border-border">
-        <div className="text-[12px] text-muted-foreground uppercase tracking-[0.06em] mb-1.5">Annual cost</div>
-        <div className="text-[22px] font-medium tabular-nums">
-          <MaskedAmount value={Math.round(subTotal * 12)} />/yr
+      <AppDialog title="Add subscription" open={open} onOpenChange={setOpen}
+        footer={<Button onClick={handleCreate}>Add</Button>}
+      >
+        <Input placeholder="Name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+        <div className="flex gap-2">
+          <Input placeholder="Amount" type="number" value={form.amount}
+            onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} className="flex-1" />
+          <Select value={form.currency} onValueChange={(v) => setForm((f) => ({ ...f, currency: v ?? mainCurrency }))}>
+            <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {wallets.map((w) => (<SelectItem key={w.currency} value={w.currency}>{w.currency}</SelectItem>))}
+            </SelectContent>
+          </Select>
         </div>
-        <div className="text-[11px] text-muted-foreground mt-1">
-          {subscriptions.length} subscriptions
-        </div>
-      </div>
+        <Select value={form.categoryId} onValueChange={(v) => setForm((f) => ({ ...f, categoryId: v ?? "" }))}>
+          <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
+          <SelectContent>
+            {categories.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
+          </SelectContent>
+        </Select>
+        <Select value={form.cycle} onValueChange={(v) => setForm((f) => ({ ...f, cycle: (v ?? "monthly") as "monthly" | "yearly" }))}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="monthly">Monthly</SelectItem>
+            <SelectItem value="yearly">Yearly</SelectItem>
+          </SelectContent>
+        </Select>
+        <DatePicker value={form.nextDate} onChange={(v) => setForm((f) => ({ ...f, nextDate: v }))} />
+      </AppDialog>
 
       <AppDialog title="Edit subscription" open={editOpen} onOpenChange={setEditOpen}
         footer={<Button onClick={handleEdit}>Save</Button>}
@@ -209,6 +247,7 @@ export default function SubscriptionsPage() {
             <SelectItem value="yearly">Yearly</SelectItem>
           </SelectContent>
         </Select>
+        <DatePicker value={editForm.nextDate} onChange={(v) => setEditForm((f) => ({ ...f, nextDate: v }))} />
         <label className="flex items-center gap-2 text-[13px] text-foreground">
           <input type="checkbox" checked={editForm.active}
             onChange={(e) => setEditForm((f) => ({ ...f, active: e.target.checked }))} />

@@ -48,7 +48,7 @@ export default function InvoicesPage() {
     const today = new Date();
     const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
     const daysLeft = daysInMonth - today.getDate();
-    if (daysLeft > 5) return;
+    if (daysLeft > 7) return;
 
     const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
     const nextMonthKey = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}`;
@@ -90,6 +90,56 @@ export default function InvoicesPage() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const nextDraftDate = (() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    d.setDate(1);  // 1st of next month
+    d.setDate(d.getDate() - 6);  // 7 days before
+    return d;
+  })();
+  const nextDraftLabel = nextDraftDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const currentMonthKey = getToday().substring(0, 7);
+  const currentMonthFirst = `${currentMonthKey}-01`;
+
+  function handleDraftCombined() {
+    if (retainerProjects.length === 0) return;
+    const exists = invoices.some((inv) => inv.issuedDate.startsWith(currentMonthKey));
+    if (exists) { toast.error("An invoice already exists for this month"); return; }
+    const total = retainerProjects.reduce((sum, p) => sum + convert(p.amount, p.currency), 0);
+    addInvoice({
+      projectIds: retainerProjects.map((p) => p.id),
+      amount: Math.round(total),
+      estimatedFees: 0,
+      currency: mainCurrency,
+      status: "draft",
+      issuedDate: currentMonthFirst,
+      dueDate: addDays(currentMonthFirst, 7),
+      paidDate: null,
+      items: retainerProjects.map((p) => ({ description: p.name, amount: p.amount, currency: p.currency })),
+    });
+    toast.success("Combined draft created");
+  }
+
+  function handleDraftSeparate() {
+    if (retainerProjects.length === 0) return;
+    const exists = invoices.some((inv) => inv.issuedDate.startsWith(currentMonthKey));
+    if (exists) { toast.error("An invoice already exists for this month"); return; }
+    retainerProjects.forEach((p) => {
+      addInvoice({
+        projectIds: [p.id],
+        amount: Math.round(convert(p.amount, p.currency)),
+        estimatedFees: 0,
+        currency: mainCurrency,
+        status: "draft",
+        issuedDate: currentMonthFirst,
+        dueDate: addDays(currentMonthFirst, 7),
+        paidDate: null,
+        items: [{ description: p.name, amount: p.amount, currency: p.currency }],
+      });
+    });
+    toast.success(`${retainerProjects.length} separate drafts created`);
+  }
 
   const [open, setOpen] = useState(false);
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
@@ -354,9 +404,23 @@ export default function InvoicesPage() {
             );
           })}
           <div className="pt-3 flex items-center justify-between">
-            <span className="text-[12px] text-muted-foreground">
-              {retainerProjects.length} retainer{retainerProjects.length !== 1 ? "s" : ""} · auto-draft created end of month
-            </span>
+            <div className="flex items-center gap-4">
+              <span className="text-[12px] text-muted-foreground">
+                auto-drafts on {nextDraftLabel}
+              </span>
+              <button
+                className="text-[11px] text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                onClick={handleDraftCombined}
+              >
+                [draft combined]
+              </button>
+              <button
+                className="text-[11px] text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                onClick={handleDraftSeparate}
+              >
+                [draft separate]
+              </button>
+            </div>
             <span className="text-[13px] font-mono tabular-nums">
               <MaskedAmount
                 value={Math.round(retainerProjects.reduce((sum, p) => sum + convert(p.amount, p.currency), 0))}

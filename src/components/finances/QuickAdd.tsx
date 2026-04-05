@@ -9,6 +9,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -18,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { useFinanceStore } from "@/stores/financeStore";
 import { useCurrencyStore } from "@/stores/currencyStore";
+import { getToday } from "@/lib/utils";
 import { toast } from "sonner";
 
 export function QuickAdd() {
@@ -26,22 +28,21 @@ export function QuickAdd() {
   const addExpense = useFinanceStore((s) => s.addExpense);
   const wallets = useCurrencyStore((s) => s.wallets);
   const mainCurrency = useCurrencyStore((s) => s.mainCurrency);
-  const [form, setForm] = useState({ amount: "", name: "", categoryId: "", currency: mainCurrency });
+  const [form, setForm] = useState({ amount: "", name: "", categoryId: "", currency: mainCurrency, date: getToday() });
 
   function handleSubmit() {
     const amount = parseFloat(form.amount);
     if (!amount || !form.name.trim() || !form.categoryId) return;
-    const today = new Date().toISOString().split("T")[0];
     addExpense({
       amount,
       name: form.name.trim(),
       categoryId: form.categoryId,
       currency: form.currency,
-      date: today,
+      date: form.date || getToday(),
       subscriptionId: null,
     });
     toast.success("Expense added");
-    setForm({ amount: "", name: "", categoryId: "", currency: mainCurrency });
+    setForm({ amount: "", name: "", categoryId: "", currency: mainCurrency, date: getToday() });
     setOpen(false);
   }
 
@@ -95,6 +96,7 @@ export function QuickAdd() {
               ))}
             </SelectContent>
           </Select>
+          <DatePicker value={form.date} onChange={(v) => setForm((f) => ({ ...f, date: v }))} />
         </div>
         <DialogFooter>
           <Button onClick={handleSubmit}>Save</Button>

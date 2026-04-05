@@ -6,6 +6,7 @@ import { MaskedAmount } from "@/components/shared/MaskedAmount";
 import { Button } from "@/components/ui/button";
 import { AppDialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -15,12 +16,22 @@ import {
 } from "@/components/ui/select";
 import { useFinanceStore } from "@/stores/financeStore";
 import { useCurrencyStore } from "@/stores/currencyStore";
-import { getMonthKey, formatDate } from "@/lib/utils";
+import { getMonthKey, formatDate, getToday } from "@/lib/utils";
 import { toast } from "sonner";
+
+const UTIL_DEFAULTS = [
+  { name: "Rent", amount: "10000", currency: "THB" },
+  { name: "Internet (home)", amount: "535", currency: "THB" },
+  { name: "Internet (phone)", amount: "320", currency: "THB" },
+  { name: "Electricity", amount: "", currency: "THB" },
+  { name: "Water", amount: "", currency: "THB" },
+];
+type UtilItem = { name: string; amount: string; checked: boolean; currency: string };
 
 export default function ExpensesPage() {
   const allExpenses = useFinanceStore((s) => s.expenses);
   const categories = useFinanceStore((s) => s.categories);
+  const addExpense = useFinanceStore((s) => s.addExpense);
   const updateExpense = useFinanceStore((s) => s.updateExpense);
   const deleteExpense = useFinanceStore((s) => s.deleteExpense);
   const convert = useCurrencyStore((s) => s.convert);
@@ -38,13 +49,13 @@ export default function ExpensesPage() {
   
   const [editOpen, setEditOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", amount: "", categoryId: "", currency: mainCurrency });
+  const [editForm, setEditForm] = useState({ name: "", amount: "", categoryId: "", currency: mainCurrency, date: getToday() });
 
   function openEdit(id: string) {
     const e = allExpenses.find((x) => x.id === id);
     if (!e) return;
     setEditId(id);
-    setEditForm({ name: e.name, amount: String(e.amount), categoryId: e.categoryId, currency: e.currency || mainCurrency });
+    setEditForm({ name: e.name, amount: String(e.amount), categoryId: e.categoryId, currency: e.currency || mainCurrency, date: e.date || getToday() });
     setEditOpen(true);
   }
 
@@ -55,6 +66,7 @@ export default function ExpensesPage() {
       amount: Number(editForm.amount),
       categoryId: editForm.categoryId,
       currency: editForm.currency,
+      date: editForm.date || getToday(),
     });
     toast.success("Expense updated");
     setEditOpen(false);
@@ -76,8 +88,38 @@ export default function ExpensesPage() {
     setDeleteOpen(false);
   }
 
+  // Utils checklist
+  const [utilsOpen, setUtilsOpen] = useState(false);
+  const [utilItems, setUtilItems] = useState<UtilItem[]>(
+    UTIL_DEFAULTS.map((u) => ({ ...u, checked: true }))
+  );
+  const [utilDate, setUtilDate] = useState(getToday());
+
+  function openUtils() {
+    setUtilItems(UTIL_DEFAULTS.map((u) => ({ ...u, checked: true })));
+    setUtilDate(getToday());
+    setUtilsOpen(true);
+  }
+
+  function handleSubmitUtils() {
+    const billsCatId = categories.find((c) => c.id === "cat-bills")?.id ?? categories[0]?.id ?? "";
+    const today = getToday();
+    const toAdd = utilItems.filter((u) => u.checked && u.amount && Number(u.amount) > 0);
+    if (toAdd.length === 0) { toast.error("Check at least one item with an amount"); return; }
+    toAdd.forEach((u) => {
+      addExpense({ name: u.name, amount: Number(u.amount), categoryId: billsCatId, currency: u.currency, date: utilDate || today, subscriptionId: null });
+    });
+    toast.success(`${toAdd.length} utility expense${toAdd.length !== 1 ? "s" : ""} added`);
+    setUtilsOpen(false);
+  }
+
   return (
-    <AppShell title="Finances" actions={<QuickAdd />}>
+    <AppShell title="Finances" actions={
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={openUtils}>+ Add utils</Button>
+        <QuickAdd />
+      </div>
+    }>
       <FinanceNav />
 
       <div className="flex justify-between items-baseline mb-4">
@@ -139,6 +181,34 @@ export default function ExpensesPage() {
         </p>
       )}
 
+      <AppDialog title="Add utilities" open={utilsOpen} onOpenChange={setUtilsOpen}
+        footer={<Button onClick={handleSubmitUtils}>Add expenses</Button>}
+      >
+        <DatePicker value={utilDate} onChange={setUtilDate} />
+        {utilItems.map((item, i) => (
+          <div key={item.name} className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={item.checked}
+              onChange={(e) => setUtilItems((prev) => prev.map((u, j) => j === i ? { ...u, checked: e.target.checked } : u))}
+              className="accent-foreground shrink-0"
+            />
+            <span className={`text-[13px] w-36 shrink-0 ${!item.checked ? "text-muted-foreground" : "text-foreground"}`}>
+              {item.name}
+            </span>
+            <Input
+              type="number"
+              placeholder="Amount"
+              value={item.amount}
+              disabled={!item.checked}
+              onChange={(e) => setUtilItems((prev) => prev.map((u, j) => j === i ? { ...u, amount: e.target.value } : u))}
+              className="flex-1"
+            />
+            <span className="text-[11px] text-muted-foreground w-8 shrink-0">{item.currency}</span>
+          </div>
+        ))}
+      </AppDialog>
+
       <AppDialog title="Edit expense" open={editOpen} onOpenChange={setEditOpen}
         footer={<Button onClick={handleEdit}>Save</Button>}
       >
@@ -159,6 +229,7 @@ export default function ExpensesPage() {
             {categories.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
           </SelectContent>
         </Select>
+        <DatePicker value={editForm.date} onChange={(v) => setEditForm((f) => ({ ...f, date: v }))} />
       </AppDialog>
 
       <AppDialog title="Delete expense?" open={deleteOpen} onOpenChange={setDeleteOpen}

@@ -15,7 +15,7 @@ export function useMaterializeIncome() {
 
   useEffect(() => {
     const retainerItems = projects
-      .filter((p) => p.billingType === "retainer" && p.status === "active")
+      .filter((p) => p.billingType === "retainer" && p.status !== "completed" && p.status !== "paused")
       .map((p) => ({ id: p.id, name: p.name, amount: p.amount, currency: p.currency }));
 
     const recurringIncomes = incomes.filter((i) => i.recurring && !i.isSnapshot);
